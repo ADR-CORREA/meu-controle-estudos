@@ -1,5 +1,5 @@
 /* Service Worker — Meu Controle de Estudos (offline) */
-const CACHE = 'controle-estudos-v2';
+const CACHE = 'controle-estudos-v3';
 const CORE = [
   './',
   './index.html',

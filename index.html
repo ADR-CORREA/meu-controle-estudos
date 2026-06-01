@@ -679,16 +679,19 @@ const PRESETS={
    materias:[{nome:'Direito Constitucional',peso:5},{nome:'Direito Administrativo',peso:5},{nome:'Direito Tributário',peso:4},{nome:'Legislação Estadual do Amapá',peso:4},{nome:'Língua Portuguesa',peso:3},{nome:'Raciocínio Lógico-Matemático',peso:3},{nome:'Direito Civil',peso:3},{nome:'Direito Processual Civil',peso:3},{nome:'Direito Financeiro / AFO',peso:3},{nome:'Atualidades / Realidade Amapaense',peso:2},{nome:'Noções de Informática',peso:2},{nome:'Direito do Trabalho / Penal',peso:2}],
    leis:[{titulo:'Constituição do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Regime Jurídico dos Servidores do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Legislação Tributária Estadual do Amapá (ICMS)',fonte:'https://sefaz.portal.ap.gov.br/'}] },
 };
+async function aplicarPreset(concursoId,P){
+  const ciclo=await db.ciclo.where('concursoId').equals(concursoId).first();
+  if(ciclo) await db.ciclo.update(ciclo.id,{materias:P.materias,horasDia:3}); else await db.ciclo.add({concursoId,materias:P.materias,horasDia:3,blocos:[]});
+  for(const l of P.leis){ const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first(); if(!ja) await db.leis.add({concursoId,titulo:l.titulo,texto:`⚠️ Cole aqui o texto oficial desta lei (artigo por artigo).\nFonte: ${l.fonte}`,criado:todayISO()}); }
+  await seedEdital(concursoId,P.edital);
+}
 async function carregarPreset(key){
   const P=PRESETS[key]; if(!P) return;
   const existe=await db.concursos.where('nome').equals(P.nome).first();
   if(existe && !confirm(`"${P.nome}" já existe. Carregar de novo pode duplicar dados. Continuar?`)) return;
   const concursoId=existe?existe.id:await db.concursos.add({nome:P.nome,criado:todayISO()});
   estado.concursoId=concursoId;
-  const ciclo=await db.ciclo.where('concursoId').equals(concursoId).first();
-  if(ciclo) await db.ciclo.update(ciclo.id,{materias:P.materias,horasDia:3}); else await db.ciclo.add({concursoId,materias:P.materias,horasDia:3,blocos:[]});
-  for(const l of P.leis){ const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first(); if(!ja) await db.leis.add({concursoId,titulo:l.titulo,texto:`⚠️ Cole aqui o texto oficial desta lei (artigo por artigo).\nFonte: ${l.fonte}`,criado:todayISO()}); }
-  await seedEdital(concursoId,P.edital);
+  await aplicarPreset(concursoId,P);
   await carregarConcursos(); toast(`"${P.nome}" carregado!`,'ok'); renderTudo(); showView('edital');
 }
 $$('.preset-btn').forEach(b=>b.addEventListener('click', ()=>carregarPreset(b.dataset.preset)));
@@ -705,7 +708,18 @@ $('#reset-all').addEventListener('click', async ()=>{ if(!confirm('Apagar TODOS 
    BOOT
    ===================================================================== */
 function renderTudo(){ renderHoje(); renderDashboard(); renderCards(); iniciarRevisao(); }
-async function init(){ await carregarConcursos(); renderTudo(); }
+async function init(){
+  await carregarConcursos(); // garante ao menos um concurso
+  // Se não há NENHUM edital ainda, já deixa o Procurador PGM Macapá pronto no concurso atual.
+  const totalTopicos = await db.editalTopicos.count();
+  if(totalTopicos===0){
+    const c = await db.concursos.get(estado.concursoId);
+    if(c && (c.nome==='Meu concurso' || !c.nome)){ await db.concursos.update(c.id,{nome:PRESETS.macapa.nome}); }
+    await aplicarPreset(estado.concursoId, PRESETS.macapa);
+    await carregarConcursos();
+  }
+  renderTudo();
+}
 init();
 
 // PWA: registra service worker (só funciona via http/https — em file:// é ignorado)
