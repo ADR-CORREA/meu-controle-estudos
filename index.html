@@ -2,678 +2,561 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0f172a">
-<title>Meu Controle de Estudos — Concursos Amapá</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<title>Rumo à PGM — controle de estudos</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Estudos">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<meta name="apple-mobile-web-app-title" content="Rumo à PGM">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
 <script>
-  tailwind.config = { theme: { extend: { colors: { brand: { 300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' } } } } }
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: {
+      fontFamily: { sans:['Inter','system-ui','sans-serif'], display:['"Plus Jakarta Sans"','Inter','sans-serif'] },
+      colors: { brand:{50:'#eef2ff',100:'#e0e7ff',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca'}, violet:{500:'#8b5cf6',600:'#7c3aed'} }
+    } }
+  }
 </script>
+<style type="text/tailwindcss">
+  @layer base {
+    html { -webkit-tap-highlight-color: transparent; }
+    body { @apply font-sans bg-slate-50 text-slate-900 dark:bg-[#0a0e1a] dark:text-slate-100; }
+    h1,h2,h3 { @apply font-display; }
+  }
+  @layer components {
+    .card { @apply bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl; }
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[.97] disabled:opacity-50; }
+    .btn-primary { @apply btn text-white shadow-lg shadow-indigo-600/20; background-image:linear-gradient(135deg,#4f46e5,#7c3aed); }
+    .btn-ghost { @apply btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700; }
+    .chip { @apply inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full; }
+    .input { @apply w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400; }
+    .nav-link { @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition; }
+    .nav-link.active { @apply text-white; background-image:linear-gradient(135deg,#4f46e5,#7c3aed); }
+    .gradtext { background:linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  }
+  @layer utilities { .no-scrollbar::-webkit-scrollbar{display:none} }
+</style>
 <style>
-  html { scroll-behavior: smooth; }
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  .view { display: none; }
-  .view.active { display: block; animation: fade .25s ease; }
-  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .nav-btn.active { background: #1d4ed8; color: #fff; }
-  textarea, input, select { color-scheme: dark; }
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}.dark ::-webkit-scrollbar-thumb{background:#334155}
+  .view{display:none}.view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .bar-fill{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  details>summary{list-style:none}details>summary::-webkit-details-marker{display:none}
+  .safe-b{padding-bottom:env(safe-area-inset-bottom)}
 </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen antialiased">
+<body class="min-h-screen">
 
 <div class="flex min-h-screen">
-  <!-- SIDEBAR -->
-  <aside id="sidebar" class="w-60 shrink-0 bg-slate-950/80 border-r border-slate-800 flex flex-col fixed md:static inset-y-0 left-0 z-40 -translate-x-full md:translate-x-0 transition-transform">
-    <div class="p-4 border-b border-slate-800">
-      <div class="flex items-center gap-2">
-        <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center font-black text-lg">✓</div>
-        <div>
-          <div class="font-bold leading-tight">Meu Controle</div>
-          <div class="text-[10px] text-slate-500 leading-tight">de estudos · concursos</div>
-        </div>
-      </div>
+  <!-- SIDEBAR / DRAWER -->
+  <div id="scrim" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+  <aside id="sidebar" class="w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col fixed md:sticky top-0 h-screen inset-y-0 left-0 z-40 -translate-x-full md:translate-x-0 transition-transform">
+    <div class="p-4 flex items-center gap-3 border-b border-slate-200 dark:border-slate-800">
+      <div class="w-10 h-10 rounded-xl grid place-items-center text-white font-display font-extrabold text-lg" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">R</div>
+      <div><div class="font-display font-extrabold leading-tight">Rumo à <span class="gradtext">PGM</span></div><div class="text-[10px] text-slate-400">controle de estudos</div></div>
     </div>
-    <nav class="flex-1 p-2 space-y-1 text-sm">
-      <button data-view="hoje"       class="nav-btn active w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">☀️ <span>Hoje</span></button>
-      <button data-view="dashboard"  class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📊 <span>Painel</span></button>
-      <button data-view="edital"     class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📋 <span>Edital</span></button>
-      <button data-view="cronograma" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🗓️ <span>Cronograma</span></button>
-      <button data-view="questoes"   class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">❓ <span>Questões</span></button>
-      <button data-view="flashcards" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🃏 <span>Flashcards</span></button>
-      <button data-view="leis"       class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📜 <span>Leis</span></button>
-      <button data-view="simulados"  class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🧪 <span>Simulados</span></button>
-      <div class="pt-2 mt-2 border-t border-slate-800"></div>
-      <button data-view="config"     class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">⚙️ <span>Configurações</span></button>
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
+      <button data-view="hoje" class="nav-link active">☀️ <span>Hoje</span></button>
+      <button data-view="edital" class="nav-link">📋 <span>Edital</span></button>
+      <button data-view="questoes" class="nav-link">❓ <span>Questões</span></button>
+      <button data-view="revisao" class="nav-link">🃏 <span>Revisão</span></button>
+      <button data-view="desempenho" class="nav-link">📈 <span>Desempenho</span></button>
+      <div class="pt-2 mt-2 border-t border-slate-200 dark:border-slate-800"></div>
+      <button data-view="cronograma" class="nav-link">🗓️ <span>Cronograma</span></button>
+      <button data-view="leis" class="nav-link">📜 <span>Leis</span></button>
+      <button data-view="simulados" class="nav-link">🧪 <span>Simulados</span></button>
+      <button data-view="config" class="nav-link">⚙️ <span>Ajustes</span></button>
     </nav>
-    <div class="p-3 text-[10px] text-slate-600 border-t border-slate-800">Tudo salvo no seu navegador. Faça backup em Config.</div>
+    <div class="p-3 text-[10px] text-slate-400 border-t border-slate-200 dark:border-slate-800">Offline · dados no seu aparelho</div>
   </aside>
 
   <!-- MAIN -->
   <div class="flex-1 flex flex-col min-w-0">
-    <header class="h-14 border-b border-slate-800 flex items-center justify-between px-4 gap-3 sticky top-0 bg-slate-900/90 backdrop-blur z-30">
-      <button id="menu-toggle" class="md:hidden p-2 -ml-2">☰</button>
-      <div class="flex items-center gap-2 text-sm text-slate-400">
-        <select id="concurso-select" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-sm"></select>
-        <button id="novo-concurso" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">+ concurso</button>
-      </div>
-      <div class="flex items-center gap-3 text-sm">
-        <div class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500/10 text-orange-400" title="Dias seguidos estudando">🔥 <span id="streak">0</span></div>
-        <div class="px-2 py-1 rounded-lg bg-slate-800" title="Flashcards para revisar hoje">🃏 <span id="due-badge">0</span></div>
-      </div>
+    <header class="h-14 sticky top-0 z-20 bg-slate-50/90 dark:bg-[#0a0e1a]/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 px-3">
+      <button id="menu" class="md:hidden p-2 -ml-1 text-xl">☰</button>
+      <select id="concurso-select" class="bg-transparent text-sm font-semibold max-w-[46vw] md:max-w-xs truncate outline-none"></select>
+      <button id="novo-concurso" class="text-xs px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">+</button>
+      <div class="flex-1"></div>
+      <div class="chip bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400" title="ofensiva">🔥 <span id="streak">0</span></div>
+      <button id="theme-btn" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" title="tema">🌓</button>
     </header>
 
-    <main class="flex-1 p-4 md:p-6 max-w-6xl w-full mx-auto">
+    <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-5 pb-28 md:pb-8">
 
-      <!-- ============ HOJE ============ -->
+      <!-- ===== HOJE ===== -->
       <section id="view-hoje" class="view active">
-        <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
-          <h1 class="text-2xl font-bold">☀️ Hoje</h1>
-          <button id="hoje-config" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">⚙️ metas</button>
+        <div class="flex items-center justify-between mb-1">
+          <h1 class="text-2xl font-extrabold" id="hoje-greet">Olá 👋</h1>
+          <button id="hoje-config" class="text-xs text-slate-400">⚙️ metas</button>
         </div>
-        <p class="text-slate-400 text-sm mb-4" id="hoje-data"></p>
+        <p class="text-slate-400 text-sm mb-5" id="hoje-data"></p>
 
-        <div id="hoje-metas" class="bg-slate-800/40 rounded-xl p-4 border border-slate-800 mb-4 hidden">
-          <h3 class="text-sm font-semibold mb-2">⚙️ Metas diárias</h3>
+        <div id="hoje-metas" class="card p-4 mb-4 hidden">
+          <h3 class="text-sm font-bold mb-2">Metas diárias</h3>
           <div class="flex flex-wrap items-end gap-3">
-            <div><label class="text-xs text-slate-400">Questões/dia</label><input id="meta-q" type="number" min="0" class="block w-24 mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm"></div>
-            <div><label class="text-xs text-slate-400">Minutos/dia</label><input id="meta-min" type="number" min="0" class="block w-24 mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm"></div>
-            <button id="meta-salvar" class="px-4 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Salvar metas</button>
+            <label class="text-xs text-slate-400">Questões/dia<input id="meta-q" type="number" min="0" class="input mt-1 w-24"></label>
+            <label class="text-xs text-slate-400">Minutos/dia<input id="meta-min" type="number" min="0" class="input mt-1 w-24"></label>
+            <button id="meta-salvar" class="btn-primary">Salvar</button>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-orange-400" id="h-streak">0</div><div class="text-[11px] text-slate-400">🔥 dias seguidos</div></div>
-          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-brand-400" id="h-due">0</div><div class="text-[11px] text-slate-400">🃏 revisar hoje</div></div>
-          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-violet-400" id="h-qhoje">0</div><div class="text-[11px] text-slate-400">❓ questões hoje</div></div>
-          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-emerald-400" id="h-tempo">0min</div><div class="text-[11px] text-slate-400">⏱️ tempo hoje</div></div>
-        </div>
+        <!-- anéis de meta -->
+        <div class="card p-5 mb-4 flex items-center justify-around text-center" id="hoje-rings"></div>
 
-        <div class="bg-gradient-to-br from-brand-900/40 to-slate-800/40 rounded-xl p-5 border border-brand-800 mb-5">
-          <div class="flex items-center justify-between mb-1">
-            <h2 class="font-semibold">🎯 Sua missão de hoje</h2>
-            <span class="text-xs text-slate-400" id="h-progresso-dia">0/0</span>
-          </div>
-          <p class="text-sm text-slate-300 mb-1">Matéria do dia: <b id="h-materia" class="text-brand-300">—</b> <span id="h-materia-prio"></span></p>
-          <div class="h-2 bg-slate-700 rounded mb-4"><div id="h-bar-dia" class="h-2 rounded bg-emerald-500" style="width:0%"></div></div>
+        <!-- missão -->
+        <div class="card p-5 mb-4" style="background:linear-gradient(135deg,rgba(79,70,229,.10),rgba(124,58,237,.10))">
+          <div class="flex items-center justify-between mb-1"><h2 class="font-bold">🎯 Missão de hoje</h2><span class="text-xs text-slate-400" id="h-prog">0/0</span></div>
+          <p class="text-sm mb-3">Foco do dia: <b id="h-materia" class="gradtext">—</b> <span id="h-prio" class="text-xs"></span></p>
           <div id="h-checklist" class="space-y-2"></div>
         </div>
 
-        <div class="grid lg:grid-cols-2 gap-4">
-          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
-            <h2 class="font-semibold mb-3">✏️ Registrar estudo <span class="text-xs font-normal text-slate-400">(o que você fez no seu curso)</span></h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="card p-5">
+            <h2 class="font-bold mb-3">✏️ Registrar estudo</h2>
+            <select id="rg-materia" class="input mb-2"></select>
             <div class="grid grid-cols-2 gap-2">
-              <select id="rg-materia" class="col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"></select>
-              <select id="rg-tipo" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
-                <option value="teoria">Teoria/aula</option><option value="questoes" selected>Questões</option>
-                <option value="revisao">Revisão</option><option value="lei">Lei seca</option><option value="leitura">Leitura/PDF</option>
-              </select>
-              <input id="rg-min" type="number" min="0" placeholder="minutos" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
-              <input id="rg-q" type="number" min="0" placeholder="nº questões" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
-              <input id="rg-acertos" type="number" min="0" placeholder="acertos" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+              <select id="rg-tipo" class="input"><option value="teoria">Teoria/aula</option><option value="questoes" selected>Questões</option><option value="revisao">Revisão</option><option value="lei">Lei seca</option><option value="leitura">Leitura/PDF</option></select>
+              <input id="rg-min" type="number" min="0" placeholder="minutos" class="input">
+              <input id="rg-q" type="number" min="0" placeholder="questões" class="input">
+              <input id="rg-acertos" type="number" min="0" placeholder="acertos" class="input">
             </div>
-            <button id="rg-salvar" class="w-full mt-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Registrar</button>
+            <button id="rg-salvar" class="btn-primary w-full mt-3">Registrar</button>
+            <div id="h-registros" class="space-y-1 mt-3"></div>
           </div>
-          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
-            <h2 class="font-semibold mb-3">🔥 Matérias que mais caem <span class="text-xs font-normal text-slate-400">(foque aqui)</span></h2>
-            <div id="h-foco" class="space-y-2 text-sm"></div>
-          </div>
-        </div>
-
-        <h2 class="font-semibold mt-5 mb-2 text-sm text-slate-400">Registros de hoje</h2>
-        <div id="h-registros" class="space-y-1"></div>
-      </section>
-
-      <!-- ============ PAINEL ============ -->
-      <section id="view-dashboard" class="view">
-        <h1 class="text-2xl font-bold mb-1">📊 Painel</h1>
-        <p class="text-slate-400 text-sm mb-6" id="hoje-label"></p>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-brand-400" id="kpi-due">0</div><div class="text-xs text-slate-400 mt-1">Revisões pendentes</div></div>
-          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-emerald-400" id="kpi-acerto">—</div><div class="text-xs text-slate-400 mt-1">% de acerto geral</div></div>
-          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-violet-400" id="kpi-questoes">0</div><div class="text-xs text-slate-400 mt-1">Questões registradas</div></div>
-          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-orange-400" id="kpi-cards">0</div><div class="text-xs text-slate-400 mt-1">Flashcards criados</div></div>
-        </div>
-        <div class="grid lg:grid-cols-2 gap-4">
-          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
-            <h2 class="font-semibold mb-3">📈 Desempenho por matéria</h2>
-            <div id="desempenho-list" class="space-y-2 text-sm text-slate-400"><p class="text-slate-500">Registre questões (na tela Hoje) para ver seu desempenho.</p></div>
-          </div>
-          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
-            <h2 class="font-semibold mb-3">📅 Últimos 7 dias</h2>
-            <div id="semana-list" class="space-y-1 text-sm"></div>
+          <div class="card p-5">
+            <h2 class="font-bold mb-3">🔥 O que mais cai</h2>
+            <div id="h-foco" class="space-y-2.5"></div>
           </div>
         </div>
       </section>
 
-      <!-- ============ EDITAL ============ -->
+      <!-- ===== EDITAL ===== -->
       <section id="view-edital" class="view">
-        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <h1 class="text-2xl font-bold">📋 Edital Verticalizado</h1>
-          <div class="flex gap-2">
-            <button id="ed-add-abrir" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">+ Tópico</button>
-          </div>
+        <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+          <h1 class="text-2xl font-extrabold">📋 Edital</h1>
+          <button id="ed-add-abrir" class="btn-ghost text-xs">+ tópico</button>
         </div>
-        <p class="text-slate-400 text-sm mb-4">Marque <b>✓</b> o que já domina. 🔴 = alta incidência. Carregue um concurso pronto em ⚙️ Configurações.</p>
-        <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-800 mb-4">
-          <div class="flex justify-between text-sm mb-1"><span>Progresso geral</span><span id="ed-pct">0%</span></div>
-          <div class="h-3 bg-slate-700 rounded"><div id="ed-bar" class="h-3 rounded bg-brand-500" style="width:0%"></div></div>
-          <p class="text-xs text-slate-500 mt-1"><span id="ed-feitos">0</span> de <span id="ed-total">0</span> tópicos dominados</p>
+        <p class="text-slate-400 text-sm mb-4">Toque no status para marcar: ⚪ não iniciado → 🟡 estudando → 🟢 dominado.</p>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          <div class="card p-4"><div class="text-2xl font-extrabold gradtext" id="ed-kpi-cob">—</div><div class="text-[11px] text-slate-400 mt-0.5">domínio do que <b>mais cai</b> 🔥</div></div>
+          <div class="card p-4"><div class="text-2xl font-extrabold" id="ed-kpi-prog">0%</div><div class="text-[11px] text-slate-400 mt-0.5"><span id="ed-feitos">0</span>/<span id="ed-total">0</span> tópicos dominados</div></div>
+          <div class="card p-4 col-span-2 md:col-span-1"><div class="text-2xl font-extrabold" id="ed-kpi-est">0</div><div class="text-[11px] text-slate-400 mt-0.5">tópicos em estudo</div></div>
         </div>
-        <div id="ed-add-form" class="bg-slate-800/40 rounded-xl p-4 border border-slate-800 mb-4 hidden">
+
+        <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar text-xs">
+          <button data-f="todos" class="ed-filtro chip bg-indigo-600 text-white">Tudo</button>
+          <button data-f="falta" class="ed-filtro chip bg-slate-100 dark:bg-slate-800">O que falta 🔥</button>
+          <button data-f="estudando" class="ed-filtro chip bg-slate-100 dark:bg-slate-800">Estudando</button>
+          <button data-f="dominado" class="ed-filtro chip bg-slate-100 dark:bg-slate-800">Dominados</button>
+        </div>
+
+        <div id="ed-add-form" class="card p-4 mb-4 hidden">
           <div class="grid sm:grid-cols-2 gap-2">
-            <input id="ed-add-disc" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Disciplina (ex: Direito Administrativo)">
-            <input id="ed-add-top" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Tópico (ex: Poder de polícia)">
+            <input id="ed-add-disc" class="input" placeholder="Disciplina">
+            <input id="ed-add-top" class="input" placeholder="Tópico">
           </div>
           <div class="flex items-center gap-2 mt-2">
-            <label class="text-xs text-slate-400 flex items-center gap-1"><input id="ed-add-alta" type="checkbox" class="w-4 h-4"> marcar como 🔴 alta incidência</label>
-            <button id="ed-add-salvar" class="ml-auto px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Adicionar</button>
+            <label class="text-xs text-slate-400 flex items-center gap-1"><input id="ed-add-alta" type="checkbox"> 🔥 alta incidência</label>
+            <button id="ed-add-salvar" class="btn-primary ml-auto">Adicionar</button>
           </div>
         </div>
+
         <div id="ed-conteudo" class="space-y-3"></div>
-        <div id="ed-vazio" class="text-center text-slate-500 py-12">
-          <div class="text-5xl mb-3">📋</div>
-          <p class="mb-1">Nenhum edital carregado para este concurso.</p>
-          <p class="text-sm mb-4">Carregue um edital verticalizado pronto (12 disciplinas, com 🔴 nos que mais caem):</p>
-          <div class="flex flex-col sm:flex-row gap-2 justify-center max-w-2xl mx-auto">
-            <button data-preset="macapa" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium text-white">⚖️ PGM Macapá<br><span class="text-[10px] font-normal opacity-80">Procurador</span></button>
-            <button data-preset="trt8" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium text-white">⚖️ TRT-8 (PA/AP)<br><span class="text-[10px] font-normal opacity-80">Analista Judiciário</span></button>
-            <button data-preset="gestao" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium text-white">⚖️ Gestão Gov. AP<br><span class="text-[10px] font-normal opacity-80">Analista Jurídico</span></button>
-          </div>
-          <p class="text-xs mt-4">…ou clique em <b>+ Tópico</b> acima para montar manualmente.</p>
+        <div id="ed-vazio" class="text-center text-slate-400 py-16 hidden">
+          <div class="text-5xl mb-3">📋</div><p>Edital vazio. Carregue um concurso em <b>Ajustes</b>.</p>
         </div>
       </section>
 
-      <!-- ============ CRONOGRAMA ============ -->
-      <section id="view-cronograma" class="view">
-        <h1 class="text-2xl font-bold mb-1">🗓️ Cronograma — Ciclo de Estudos</h1>
-        <p class="text-slate-400 text-sm mb-5">Cadastre matérias com peso. O ciclo distribui o tempo e você gira pelos blocos.</p>
-        <div class="grid lg:grid-cols-2 gap-4">
-          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
-            <h2 class="font-semibold mb-3">Matérias e pesos</h2>
-            <div class="flex gap-2 mb-3">
-              <input id="cic-mat" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Ex: Direito Constitucional">
-              <select id="cic-peso" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-sm">
-                <option value="1">Peso 1</option><option value="2">Peso 2</option><option value="3" selected>Peso 3</option><option value="4">Peso 4</option><option value="5">Peso 5</option>
-              </select>
-              <button id="cic-add" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm">+</button>
-            </div>
-            <div id="cic-materias" class="space-y-2 mb-4"></div>
-            <div class="flex items-center gap-2 border-t border-slate-800 pt-3">
-              <label class="text-xs text-slate-400">Horas/dia</label>
-              <input id="cic-horas" type="number" min="1" max="16" value="3" class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-sm">
-              <button id="cic-gerar" class="ml-auto px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm font-medium">Gerar ciclo</button>
-            </div>
-          </div>
-          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 flex flex-col items-center justify-center">
-            <h2 class="font-semibold mb-1 self-start">⏱️ Pomodoro</h2>
-            <div id="pomo-display" class="text-6xl font-black tabular-nums my-4">25:00</div>
-            <div id="pomo-fase" class="text-sm text-slate-400 mb-4">Foco</div>
-            <div class="flex gap-2">
-              <button id="pomo-toggle" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Iniciar</button>
-              <button id="pomo-reset" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">Zerar</button>
-            </div>
-            <p class="text-xs text-slate-500 mt-3">Pomodoros hoje: <b id="pomo-count">0</b></p>
-          </div>
-        </div>
-        <h2 class="font-semibold mt-6 mb-2">Seu ciclo</h2>
-        <div id="ciclo-blocos" class="space-y-2"><p class="text-slate-500 text-sm">Cadastre matérias e clique em <b>Gerar ciclo</b>.</p></div>
-      </section>
-
-      <!-- ============ QUESTÕES ============ -->
+      <!-- ===== QUESTÕES ===== -->
       <section id="view-questoes" class="view">
-        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <h1 class="text-2xl font-bold">❓ Questões <span class="text-sm font-normal text-slate-400">(comentadas)</span></h1>
-          <select id="q-filtro" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm"></select>
+        <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+          <h1 class="text-2xl font-extrabold">❓ Questões</h1>
+          <select id="q-filtro" class="input max-w-[60%] text-sm py-1.5"></select>
         </div>
-        <p class="text-slate-400 text-sm mb-4">Resolva e veja o gabarito comentado. Seus acertos entram no Painel.</p>
-        <div id="questoes-list" class="space-y-4"></div>
-        <div id="questoes-empty" class="text-center text-slate-500 py-16"><div class="text-5xl mb-3">📝</div><p>Nenhuma questão para este concurso.</p><p class="text-sm mt-1">Carregue o concurso PGM Macapá em ⚙️ Configurações.</p></div>
+        <p class="text-slate-400 text-sm mb-4">Resolva e veja o gabarito comentado. Acertos entram no Desempenho.</p>
+        <div id="questoes-list" class="space-y-3"></div>
+        <div id="questoes-empty" class="text-center text-slate-400 py-16 hidden"><div class="text-5xl mb-3">📝</div><p>Sem questões. Carregue um concurso em Ajustes.</p></div>
       </section>
 
-      <!-- ============ FLASHCARDS ============ -->
-      <section id="view-flashcards" class="view">
+      <!-- ===== REVISÃO (flashcards) ===== -->
+      <section id="view-revisao" class="view">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h1 class="text-2xl font-bold">🃏 Flashcards <span class="text-sm font-normal text-slate-400">(revisão espaçada)</span></h1>
-          <button id="abrir-card-manual" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm">+ Novo card</button>
+          <h1 class="text-2xl font-extrabold">🃏 Revisão</h1>
+          <button id="abrir-card" class="btn-ghost text-xs">+ card</button>
         </div>
-        <div id="card-manual" class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 mb-5 hidden">
-          <div class="grid md:grid-cols-2 gap-3">
-            <div><label class="text-xs text-slate-400">Frente (pergunta)</label><textarea id="cm-frente" rows="3" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"></textarea></div>
-            <div><label class="text-xs text-slate-400">Verso (resposta)</label><textarea id="cm-verso" rows="3" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"></textarea></div>
-          </div>
-          <div class="flex items-center gap-2 mt-3">
-            <input id="cm-assunto" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Assunto (ex: Princípios constitucionais)">
-            <button id="cm-salvar" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Salvar card</button>
-          </div>
+        <div id="card-form" class="card p-4 mb-4 hidden">
+          <textarea id="cm-frente" rows="2" class="input mb-2" placeholder="Frente (pergunta)"></textarea>
+          <textarea id="cm-verso" rows="2" class="input mb-2" placeholder="Verso (resposta)"></textarea>
+          <div class="flex gap-2"><input id="cm-assunto" class="input" placeholder="Assunto"><button id="cm-salvar" class="btn-primary">Salvar</button></div>
         </div>
-        <div id="revisao-box" class="bg-slate-800/40 rounded-xl p-6 border border-slate-800 mb-5">
-          <div id="revisao-vazio" class="text-center py-8"><div class="text-4xl mb-2">✅</div><p class="text-slate-300 font-medium">Nenhuma revisão pendente!</p><p class="text-slate-500 text-sm">Crie novos cards ou volte amanhã.</p></div>
-          <div id="revisao-ativo" class="hidden">
-            <div class="flex justify-between text-xs text-slate-400 mb-3"><span>Revisando <b id="rev-restantes">0</b> cards</span><span id="rev-assunto" class="px-2 py-0.5 rounded bg-slate-700"></span></div>
-            <div id="rev-frente" class="text-lg min-h-[80px] grid place-items-center text-center px-4 py-6 bg-slate-900 rounded-lg"></div>
-            <div id="rev-verso" class="hidden text-base text-emerald-300 mt-3 px-4 py-4 bg-slate-900/60 rounded-lg border border-emerald-900/40"></div>
-            <button id="rev-mostrar" class="w-full mt-4 py-3 rounded-lg bg-brand-600 hover:bg-brand-700 font-medium">Mostrar resposta</button>
+        <div class="card p-6 mb-5">
+          <div id="rev-vazio" class="text-center py-8"><div class="text-4xl mb-2">✅</div><p class="font-bold">Nenhuma revisão pendente!</p><p class="text-slate-400 text-sm">Volte amanhã ou crie cards.</p></div>
+          <div id="rev-ativo" class="hidden">
+            <div class="flex justify-between text-xs text-slate-400 mb-3"><span>Faltam <b id="rev-rest">0</b></span><span id="rev-assunto" class="chip bg-slate-100 dark:bg-slate-800"></span></div>
+            <div id="rev-frente" class="text-lg font-medium min-h-[90px] grid place-items-center text-center px-3 py-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl"></div>
+            <div id="rev-verso" class="hidden text-base text-emerald-600 dark:text-emerald-300 mt-3 px-4 py-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40"></div>
+            <button id="rev-mostrar" class="btn-primary w-full mt-4">Mostrar resposta</button>
             <div id="rev-grades" class="hidden grid grid-cols-4 gap-2 mt-4">
-              <button data-grade="0" class="py-2 rounded-lg bg-red-600/80 hover:bg-red-600 text-sm">Errei</button>
-              <button data-grade="3" class="py-2 rounded-lg bg-orange-600/80 hover:bg-orange-600 text-sm">Difícil</button>
-              <button data-grade="4" class="py-2 rounded-lg bg-brand-600/80 hover:bg-brand-600 text-sm">Bom</button>
-              <button data-grade="5" class="py-2 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-sm">Fácil</button>
+              <button data-g="0" class="btn text-white bg-red-500">Errei</button>
+              <button data-g="3" class="btn text-white bg-orange-500">Difícil</button>
+              <button data-g="4" class="btn text-white bg-indigo-500">Bom</button>
+              <button data-g="5" class="btn text-white bg-emerald-500">Fácil</button>
             </div>
           </div>
         </div>
-        <h2 class="font-semibold mb-2 text-sm text-slate-400">Todos os cards (<span id="cards-total">0</span>)</h2>
+        <h2 class="font-bold text-sm text-slate-400 mb-2">Todos os cards (<span id="cards-total">0</span>)</h2>
         <div id="cards-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
       </section>
 
-      <!-- ============ LEIS ============ -->
-      <section id="view-leis" class="view">
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h1 class="text-2xl font-bold">📜 Leis <span class="text-sm font-normal text-slate-400">(consulta)</span></h1>
-          <button id="lei-nova" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm">+ Adicionar lei</button>
+      <!-- ===== DESEMPENHO ===== -->
+      <section id="view-desempenho" class="view">
+        <h1 class="text-2xl font-extrabold mb-4">📈 Desempenho</h1>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <div class="card p-4"><div class="text-2xl font-extrabold gradtext" id="kpi-acerto">—</div><div class="text-[11px] text-slate-400">% acerto</div></div>
+          <div class="card p-4"><div class="text-2xl font-extrabold" id="kpi-q">0</div><div class="text-[11px] text-slate-400">questões</div></div>
+          <div class="card p-4"><div class="text-2xl font-extrabold" id="kpi-cards">0</div><div class="text-[11px] text-slate-400">flashcards</div></div>
+          <div class="card p-4"><div class="text-2xl font-extrabold" id="kpi-streak">0</div><div class="text-[11px] text-slate-400">🔥 ofensiva</div></div>
         </div>
-        <div id="lei-form" class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 mb-5 hidden">
-          <input id="lei-titulo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2" placeholder="Título (ex: Lei Orgânica do Município de Macapá)">
-          <textarea id="lei-texto" rows="8" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono" placeholder="Cole o texto da lei (Art. 1º ... Art. 2º ...). O app separa por artigo."></textarea>
-          <div class="flex justify-end gap-2 mt-2">
-            <button id="lei-cancelar" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm">Cancelar</button>
-            <button id="lei-salvar" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Salvar lei</button>
+        <div class="card p-5 mb-4"><h2 class="font-bold mb-3">Acerto por matéria</h2><div id="desempenho-list" class="space-y-2.5"></div></div>
+        <div class="card p-5"><h2 class="font-bold mb-3">Últimos 14 dias</h2><div id="semana-bars" class="flex items-end gap-1 h-28"></div><p class="text-[11px] text-slate-400 mt-2">altura = minutos estudados/dia</p></div>
+      </section>
+
+      <!-- ===== CRONOGRAMA ===== -->
+      <section id="view-cronograma" class="view">
+        <h1 class="text-2xl font-extrabold mb-4">🗓️ Cronograma</h1>
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="card p-5">
+            <h2 class="font-bold mb-3">Matérias e pesos</h2>
+            <div class="flex gap-2 mb-3"><input id="cic-mat" class="input" placeholder="Matéria"><select id="cic-peso" class="input w-24"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select><button id="cic-add" class="btn-primary px-3">+</button></div>
+            <div id="cic-materias" class="space-y-2 mb-3"></div>
+            <div class="flex items-center gap-2 border-t border-slate-200 dark:border-slate-800 pt-3"><label class="text-xs text-slate-400">Horas/dia</label><input id="cic-horas" type="number" min="1" max="16" value="3" class="input w-16"><button id="cic-gerar" class="btn-primary ml-auto">Gerar ciclo</button></div>
           </div>
+          <div class="card p-5 flex flex-col items-center justify-center">
+            <h2 class="font-bold mb-1 self-start">⏱️ Pomodoro</h2>
+            <div id="pomo-display" class="text-6xl font-extrabold tabular-nums my-3">25:00</div>
+            <div id="pomo-fase" class="text-sm text-slate-400 mb-3">Foco</div>
+            <div class="flex gap-2"><button id="pomo-toggle" class="btn-primary">Iniciar</button><button id="pomo-reset" class="btn-ghost">Zerar</button></div>
+            <p class="text-xs text-slate-400 mt-3">Pomodoros hoje: <b id="pomo-count">0</b></p>
+          </div>
+        </div>
+        <h2 class="font-bold mt-6 mb-2">Seu ciclo</h2>
+        <div id="ciclo-blocos" class="space-y-2"></div>
+      </section>
+
+      <!-- ===== LEIS ===== -->
+      <section id="view-leis" class="view">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2"><h1 class="text-2xl font-extrabold">📜 Leis</h1><button id="lei-nova" class="btn-ghost text-xs">+ lei</button></div>
+        <div id="lei-form" class="card p-4 mb-4 hidden">
+          <input id="lei-titulo" class="input mb-2" placeholder="Título">
+          <textarea id="lei-texto" rows="7" class="input font-mono text-xs" placeholder="Cole o texto da lei (Art. 1º ...)"></textarea>
+          <div class="flex justify-end gap-2 mt-2"><button id="lei-cancelar" class="btn-ghost">Cancelar</button><button id="lei-salvar" class="btn-primary">Salvar</button></div>
         </div>
         <div class="grid md:grid-cols-3 gap-4">
           <div id="lei-lista" class="md:col-span-1 space-y-2"></div>
-          <div id="lei-leitor" class="md:col-span-2 bg-slate-800/40 rounded-xl p-5 border border-slate-800 min-h-[300px]"><p class="text-slate-500 text-sm">Selecione uma lei à esquerda para ler artigo por artigo.</p></div>
+          <div id="lei-leitor" class="md:col-span-2 card p-5 min-h-[300px]"><p class="text-slate-400 text-sm">Selecione uma lei.</p></div>
         </div>
       </section>
 
-      <!-- ============ SIMULADOS (registro manual) ============ -->
+      <!-- ===== SIMULADOS ===== -->
       <section id="view-simulados" class="view">
-        <h1 class="text-2xl font-bold mb-1">🧪 Simulados</h1>
-        <p class="text-slate-400 text-sm mb-5">Registre o resultado dos simulados que você fez (no seu curso ou em qualquer lugar).</p>
-        <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 mb-5">
+        <h1 class="text-2xl font-extrabold mb-1">🧪 Simulados</h1>
+        <p class="text-slate-400 text-sm mb-4">Registre o resultado dos simulados que você fez.</p>
+        <div class="card p-5 mb-4">
           <div class="grid sm:grid-cols-4 gap-2">
-            <input id="simreg-foco" class="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Foco / nome (ex: Simulado geral nº 3)">
-            <input id="simreg-total" type="number" min="1" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="nº questões">
-            <input id="simreg-acertos" type="number" min="0" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="acertos">
+            <input id="simreg-foco" class="input sm:col-span-2" placeholder="Foco / nome">
+            <input id="simreg-total" type="number" min="1" class="input" placeholder="questões">
+            <input id="simreg-acertos" type="number" min="0" class="input" placeholder="acertos">
           </div>
-          <div class="flex items-center gap-2 mt-2">
-            <input id="simreg-min" type="number" min="0" class="w-28 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="tempo (min)">
-            <button id="simreg-salvar" class="ml-auto px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Registrar simulado</button>
-          </div>
+          <div class="flex gap-2 mt-2"><input id="simreg-min" type="number" min="0" class="input w-28" placeholder="tempo (min)"><button id="simreg-salvar" class="btn-primary ml-auto">Registrar</button></div>
         </div>
-        <h2 class="font-semibold mb-2 text-sm text-slate-400">Histórico</h2>
         <div id="sim-historico" class="space-y-2"></div>
       </section>
 
-      <!-- ============ CONFIG ============ -->
+      <!-- ===== CONFIG ===== -->
       <section id="view-config" class="view">
-        <h1 class="text-2xl font-bold mb-4">⚙️ Configurações</h1>
-        <div class="bg-gradient-to-br from-brand-900/40 to-slate-800/40 rounded-xl p-5 border border-brand-800 mb-4">
-          <h2 class="font-semibold mb-1">🎓 Concursos prontos (Amapá)</h2>
-          <p class="text-xs text-slate-400 mb-3">Cada botão cria o concurso já com <b>edital verticalizado</b>, <b>pesos no Ciclo</b> e <b>leis</b>.</p>
+        <h1 class="text-2xl font-extrabold mb-4">⚙️ Ajustes</h1>
+        <div class="card p-5 mb-4">
+          <h2 class="font-bold mb-1">🎓 Concursos prontos (Amapá)</h2>
+          <p class="text-xs text-slate-400 mb-3">Carrega edital + pesos + leis + questões + flashcards.</p>
           <div class="flex flex-col sm:flex-row gap-2">
-            <button data-preset="macapa" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">⚖️ PGM Macapá<br><span class="text-[10px] font-normal opacity-80">Procurador</span></button>
-            <button data-preset="trt8" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">⚖️ TRT-8 (PA/AP)<br><span class="text-[10px] font-normal opacity-80">Analista Judiciário</span></button>
-            <button data-preset="gestao" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">⚖️ Gestão Gov. AP<br><span class="text-[10px] font-normal opacity-80">Analista Jurídico</span></button>
+            <button data-preset="macapa" class="preset-btn btn-primary flex-1">⚖️ PGM Macapá</button>
+            <button data-preset="trt8" class="preset-btn btn-ghost flex-1">⚖️ TRT-8</button>
+            <button data-preset="gestao" class="preset-btn btn-ghost flex-1">⚖️ Gestão AP</button>
           </div>
-          <p class="text-[11px] text-slate-500 mt-2">⚠️ Editais ainda não publicados — conteúdo é projeção. Carregue os 3 e troque pelo seletor no topo.</p>
         </div>
-        <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
-          <h2 class="font-semibold mb-3">💾 Backup dos dados</h2>
-          <p class="text-xs text-slate-400 mb-3">Tudo é salvo no seu navegador. Exporte um backup regularmente.</p>
+        <div class="card p-5 mb-4">
+          <h2 class="font-bold mb-3">🎨 Tema</h2>
+          <div class="flex gap-2"><button data-theme="auto" class="theme-opt btn-ghost flex-1">Auto</button><button data-theme="light" class="theme-opt btn-ghost flex-1">Claro</button><button data-theme="dark" class="theme-opt btn-ghost flex-1">Escuro</button></div>
+        </div>
+        <div class="card p-5">
+          <h2 class="font-bold mb-3">💾 Backup</h2>
           <div class="flex gap-2 flex-wrap">
-            <button id="export-json" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">⬇️ Exportar backup</button>
-            <label class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700 cursor-pointer">⬆️ Importar backup<input id="import-json" type="file" accept="application/json" class="hidden"></label>
-            <button id="reset-all" class="px-4 py-2 rounded-lg bg-red-900/40 hover:bg-red-900/60 text-sm border border-red-900 text-red-300">🗑️ Apagar tudo</button>
+            <button id="export-json" class="btn-ghost">⬇️ Exportar</button>
+            <label class="btn-ghost cursor-pointer">⬆️ Importar<input id="import-json" type="file" accept="application/json" class="hidden"></label>
+            <button id="reset-all" class="btn bg-red-500/10 text-red-500 border border-red-500/30">🗑️ Apagar tudo</button>
           </div>
         </div>
       </section>
 
     </main>
+
+    <!-- BOTTOM NAV (mobile) -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 flex safe-b">
+      <button data-view="hoje" class="bn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-slate-400">☀️<span>Hoje</span></button>
+      <button data-view="edital" class="bn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-slate-400">📋<span>Edital</span></button>
+      <button data-view="questoes" class="bn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-slate-400">❓<span>Questões</span></button>
+      <button data-view="revisao" class="bn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-slate-400">🃏<span>Revisão</span></button>
+      <button data-view="desempenho" class="bn flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] text-slate-400">📈<span>Stats</span></button>
+    </nav>
   </div>
 </div>
 
-<div id="toast" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+<div id="toast" class="fixed bottom-20 md:bottom-4 right-4 z-50 space-y-2"></div>
 
 <script type="module">
-/* =====================================================================
-   MEU CONTROLE DE ESTUDOS — 100% offline, sem IA. Dados no navegador.
-   ===================================================================== */
 const db = new Dexie('aprovaia');
 db.version(1).stores({ concursos:'++id, nome', questoes:'++id, concursoId, assunto, banca', respostas:'++id, questaoId, data, acertou', flashcards:'++id, concursoId, assunto, due', sessoes:'++id, data' });
 db.version(2).stores({ leis:'++id, concursoId, titulo', ciclo:'++id, concursoId', simulados:'++id, concursoId, data', redacoes:'++id, concursoId, data' });
 db.version(3).stores({ editalTopicos:'++id, concursoId, disciplina' });
 
-const $  = (s,r=document)=>r.querySelector(s);
-const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
-const todayISO = ()=> new Date().toISOString().slice(0,10);
-const cap = s=> s.charAt(0).toUpperCase()+s.slice(1);
-const tipoLabel = t=>({teoria:'📖 Teoria/aula',questoes:'❓ Questões',revisao:'🔁 Revisão',lei:'📜 Lei seca',leitura:'📰 Leitura/PDF',simulado:'🧪 Simulado'}[t]||t);
-let estado = { concursoId:null };
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const tipoLabel=t=>({teoria:'📖 Teoria',questoes:'❓ Questões',revisao:'🔁 Revisão',lei:'📜 Lei seca',leitura:'📰 Leitura',simulado:'🧪 Simulado'}[t]||t);
+let estado={concursoId:null}, qFiltroPre=null;
 
-function toast(msg,type='info'){
-  const c={info:'bg-slate-700',ok:'bg-emerald-600',err:'bg-red-600'}[type]||'bg-slate-700';
-  const el=document.createElement('div'); el.className=`${c} text-white text-sm px-4 py-2 rounded-lg shadow-lg`; el.textContent=msg;
-  $('#toast').appendChild(el); setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3000);
-}
+function toast(msg,type='info'){const c={info:'bg-slate-800',ok:'bg-emerald-600',err:'bg-red-600'}[type];const e=document.createElement('div');e.className=`${c} text-white text-sm px-4 py-2 rounded-xl shadow-lg`;e.textContent=msg;$('#toast').appendChild(e);setTimeout(()=>{e.style.opacity='0';e.style.transition='.3s';setTimeout(()=>e.remove(),300)},3000);}
+function ring(pct,size=48,color='#6366f1'){const r=(size-7)/2,c=2*Math.PI*r,o=c*(1-pct/100);return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="-rotate-90"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="currentColor" class="text-slate-200 dark:text-slate-700" stroke-width="5"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${o}"/></svg>`;}
 
-/* ---------- navegação ---------- */
+/* ---- tema ---- */
+function applyTheme(){const t=localStorage.getItem('theme')||'auto';const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.toggle('dark',dark);$$('.theme-opt').forEach(b=>b.classList.toggle('!bg-indigo-600',b.dataset.theme===t)),$$('.theme-opt').forEach(b=>b.classList.toggle('!text-white',b.dataset.theme===t));}
+$('#theme-btn').addEventListener('click',()=>{const o=['auto','light','dark'];const t=localStorage.getItem('theme')||'auto';localStorage.setItem('theme',o[(o.indexOf(t)+1)%3]);applyTheme();toast('Tema: '+(localStorage.getItem('theme')),'info');});
+$$('.theme-opt').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('theme',b.dataset.theme);applyTheme();}));
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',applyTheme);
+
+/* ---- navegação ---- */
 function showView(name){
-  $$('.view').forEach(v=>v.classList.remove('active'));
-  $('#view-'+name)?.classList.add('active');
-  $$('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
-  $('#sidebar').classList.add('-translate-x-full');
-  if(name==='hoje') renderHoje();
-  if(name==='dashboard') renderDashboard();
-  if(name==='edital') renderEdital();
-  if(name==='cronograma') renderCiclo();
-  if(name==='questoes') renderQuestoes();
-  if(name==='flashcards') iniciarRevisao();
-  if(name==='leis') renderLeis();
-  if(name==='simulados') renderSimHistorico();
+  $$('.view').forEach(v=>v.classList.remove('active'));$('#view-'+name)?.classList.add('active');
+  $$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
+  $$('.bn').forEach(b=>{const a=b.dataset.view===name;b.classList.toggle('text-indigo-600',a);b.classList.toggle('dark:text-indigo-400',a);b.classList.toggle('text-slate-400',!a);});
+  $('#sidebar').classList.add('-translate-x-full');$('#scrim').classList.add('hidden');
+  ({hoje:renderHoje,edital:renderEdital,questoes:renderQuestoes,revisao:iniciarRevisao,desempenho:renderDesempenho,cronograma:renderCiclo,leis:renderLeis,simulados:renderSimHistorico})[name]?.();
+  window.scrollTo(0,0);
 }
-$$('.nav-btn').forEach(b=> b.addEventListener('click', ()=>showView(b.dataset.view)));
-$('#menu-toggle').addEventListener('click', ()=> $('#sidebar').classList.toggle('-translate-x-full'));
+$$('.nav-link,.bn').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+$('#menu').addEventListener('click',()=>{$('#sidebar').classList.remove('-translate-x-full');$('#scrim').classList.remove('hidden');});
+$('#scrim').addEventListener('click',()=>{$('#sidebar').classList.add('-translate-x-full');$('#scrim').classList.add('hidden');});
 
-/* ---------- concursos ---------- */
+/* ---- concursos ---- */
 async function carregarConcursos(){
-  let lista = await db.concursos.toArray();
-  if(lista.length===0){ const id=await db.concursos.add({nome:'Meu concurso',criado:todayISO()}); lista=await db.concursos.toArray(); estado.concursoId=id; }
-  estado.concursoId = estado.concursoId || lista[0].id;
-  $('#concurso-select').innerHTML = lista.map(c=>`<option value="${c.id}" ${c.id==estado.concursoId?'selected':''}>${c.nome}</option>`).join('');
+  let l=await db.concursos.toArray();
+  if(!l.length){const id=await db.concursos.add({nome:'Meu concurso',criado:todayISO()});l=await db.concursos.toArray();estado.concursoId=id;}
+  estado.concursoId=estado.concursoId||l[0].id;
+  $('#concurso-select').innerHTML=l.map(c=>`<option value="${c.id}" ${c.id==estado.concursoId?'selected':''}>${c.nome}</option>`).join('');
 }
-$('#concurso-select').addEventListener('change', e=>{ estado.concursoId=+e.target.value; renderTudo(); });
-$('#novo-concurso').addEventListener('click', async ()=>{
-  const nome=prompt('Nome do concurso:'); if(!nome) return;
-  const id=await db.concursos.add({nome,criado:todayISO()}); estado.concursoId=id;
-  await carregarConcursos(); renderTudo();
-});
+$('#concurso-select').addEventListener('change',e=>{estado.concursoId=+e.target.value;renderTudo();});
+$('#novo-concurso').addEventListener('click',async()=>{const n=prompt('Nome do concurso:');if(!n)return;estado.concursoId=await db.concursos.add({nome:n,criado:todayISO()});await carregarConcursos();renderTudo();});
 
-/* ---------- sessões / streak ---------- */
-async function registrarSessao(){ const h=todayISO(); const ex=await db.sessoes.where('data').equals(h).first(); if(!ex) await db.sessoes.add({data:h}); }
-async function calcStreak(){
-  const dias=(await db.sessoes.toArray()).map(s=>s.data).sort().reverse();
-  if(dias.length===0) return 0;
-  let streak=0,d=new Date();
-  for(let i=0;i<400;i++){ const iso=d.toISOString().slice(0,10); if(dias.includes(iso)) streak++; else if(iso!==todayISO()) break; d.setDate(d.getDate()-1); }
-  return streak;
-}
+/* ---- sessões/streak ---- */
+async function registrarSessao(){const h=todayISO();if(!(await db.sessoes.where('data').equals(h).first()))await db.sessoes.add({data:h});}
+async function calcStreak(){const d=(await db.sessoes.toArray()).map(s=>s.data);let n=0,x=new Date();for(let i=0;i<400;i++){const iso=x.toISOString().slice(0,10);if(d.includes(iso))n++;else if(iso!==todayISO())break;x.setDate(x.getDate()-1);}return n;}
 
-/* =====================================================================
-   HOJE
-   ===================================================================== */
+/* =================== HOJE =================== */
 async function renderHoje(){
-  $('#hoje-data').textContent = cap(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}));
-  const metaQ=+(localStorage.getItem('meta_q')||30), metaMin=+(localStorage.getItem('meta_min')||120);
-  $('#meta-q').value=metaQ; $('#meta-min').value=metaMin;
-  const hoje=todayISO();
-  const sess=(await db.sessoes.toArray()).filter(s=>s.data===hoje && (s.concursoId==null||s.concursoId===estado.concursoId));
-  const tMin=sess.reduce((s,x)=>s+(+x.minutos||0),0), tQ=sess.reduce((s,x)=>s+(+x.questoes||0),0);
-  $('#h-tempo').textContent = tMin>=60?(Math.floor(tMin/60)+'h'+(tMin%60?(tMin%60)+'m':'')):tMin+'min';
-  $('#h-qhoje').textContent = tQ;
+  $('#hoje-greet').textContent='Olá 👋';
+  $('#hoje-data').textContent=cap(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}));
+  const mq=+(localStorage.getItem('meta_q')||30),mm=+(localStorage.getItem('meta_min')||120);
+  $('#meta-q').value=mq;$('#meta-min').value=mm;
+  const h=todayISO();
+  const sess=(await db.sessoes.toArray()).filter(s=>s.data===h&&(s.concursoId==null||s.concursoId===estado.concursoId));
+  const tMin=sess.reduce((a,s)=>a+(+s.minutos||0),0),tQ=sess.reduce((a,s)=>a+(+s.questoes||0),0);
   const cards=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray();
-  const due=cards.filter(c=>c.due<=hoje).length;
-  $('#h-due').textContent=due; $('#h-streak').textContent=await calcStreak();
-  const ciclo=await getCiclo();
-  const mats=(ciclo.materias||[]).slice().sort((a,b)=>b.peso-a.peso);
-  let materia='—',prio='';
-  if(mats.length){ const dn=Math.floor(Date.now()/86400000); const m=mats[dn%mats.length]; materia=m.nome; prio=m.peso>=5?'🔴 prioridade máxima':(m.peso>=4?'🟠 prioridade alta':''); }
-  $('#h-materia').textContent=materia; $('#h-materia-prio').textContent=prio;
+  const due=cards.filter(c=>c.due<=h).length;
+  const streak=await calcStreak();$('#streak').textContent=streak;
+  $('#hoje-rings').innerHTML=[
+    {v:Math.min(100,Math.round(tQ/(mq||1)*100)),lbl:'questões',sub:`${tQ}/${mq}`,col:'#6366f1'},
+    {v:Math.min(100,Math.round(tMin/(mm||1)*100)),lbl:'minutos',sub:`${tMin}/${mm}`,col:'#8b5cf6'},
+    {v:due?0:100,lbl:'revisões',sub:`${due} hoje`,col:'#f59e0b'},
+  ].map(r=>`<div class="flex flex-col items-center"><div class="relative">${ring(r.v,56,r.col)}<span class="absolute inset-0 grid place-items-center text-xs font-bold">${r.v}%</span></div><div class="text-[11px] text-slate-400 mt-1">${r.lbl}</div><div class="text-[11px] font-semibold">${r.sub}</div></div>`).join('');
+  // matéria do dia
+  const ciclo=await getCiclo();const mats=(ciclo.materias||[]).slice().sort((a,b)=>b.peso-a.peso);
+  let materia='—',prio='';if(mats.length){const m=mats[Math.floor(Date.now()/864e5)%mats.length];materia=m.nome;prio=m.peso>=5?'🔴 máxima':(m.peso>=4?'🟠 alta':'');}
+  $('#h-materia').textContent=materia;$('#h-prio').textContent=prio;
   $('#rg-materia').innerHTML=(mats.length?mats.map(m=>m.nome):['Geral']).map(n=>`<option ${n===materia?'selected':''}>${n}</option>`).join('');
-  renderChecklist(materia,metaQ,metaMin,due);
+  renderChecklist(materia,mq,mm,due);
   await renderFoco(mats);
-  $('#h-registros').innerHTML = sess.length? sess.slice().reverse().map(s=>`<div class="flex justify-between text-xs bg-slate-800/40 rounded px-3 py-1.5 border border-slate-800"><span>${tipoLabel(s.tipo)} · ${s.materia||'Geral'}</span><span class="text-slate-400">${s.minutos?s.minutos+'min ':''}${s.questoes?('· '+s.questoes+'q'+(s.acertos!=null?' ('+s.acertos+'✓)':'')):''}</span></div>`).join('') : '<p class="text-slate-500 text-xs">Nada registrado hoje. Use "Registrar estudo" acima. 💪</p>';
+  $('#h-registros').innerHTML=sess.length?sess.slice().reverse().map(s=>`<div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-1.5"><span>${tipoLabel(s.tipo)} · ${s.materia||'Geral'}</span><span>${s.minutos?s.minutos+'min ':''}${s.questoes?'· '+s.questoes+'q':''}</span></div>`).join(''):'<p class="text-slate-400 text-xs">Nada hoje ainda. 💪</p>';
 }
-function renderChecklist(materia,metaQ,metaMin,due){
-  const key=`hoje_${estado.concursoId}_${todayISO()}`;
-  const st=JSON.parse(localStorage.getItem(key)||'{}');
-  const items=[{k:'flash',txt:`Revisar flashcards vencidos (${due})`},{k:'quest',txt:`Resolver ${metaQ} questões de ${materia}`},{k:'teoria',txt:`Estudar teoria/aula de ${materia} (${metaMin} min)`},{k:'lei',txt:`Revisar lei seca / pontos fracos`}];
-  const cont=$('#h-checklist');
-  cont.innerHTML=items.map(i=>`<label class="flex items-center gap-3 bg-slate-900/60 rounded-lg px-3 py-2 cursor-pointer"><input type="checkbox" class="ck w-4 h-4" data-k="${i.k}" ${st[i.k]?'checked':''}><span class="text-sm ${st[i.k]?'line-through text-slate-500':''}">${i.txt}</span></label>`).join('');
-  const done=items.filter(i=>st[i.k]).length;
-  $('#h-progresso-dia').textContent=`${done}/${items.length}`;
-  $('#h-bar-dia').style.width=Math.round(done/items.length*100)+'%';
-  cont.querySelectorAll('.ck').forEach(ch=>ch.addEventListener('change',async ()=>{ st[ch.dataset.k]=ch.checked; localStorage.setItem(key,JSON.stringify(st)); if(ch.checked) await registrarSessao(); renderChecklist(materia,metaQ,metaMin,due); $('#h-streak').textContent=await calcStreak(); }));
+function renderChecklist(materia,mq,mm,due){
+  const k=`hoje_${estado.concursoId}_${todayISO()}`,st=JSON.parse(localStorage.getItem(k)||'{}');
+  const items=[{k:'flash',t:`Revisar flashcards (${due})`},{k:'quest',t:`Resolver ${mq} questões de ${materia}`},{k:'teoria',t:`Estudar ${materia} (${mm}min)`},{k:'lei',t:'Revisar lei seca / pontos fracos'}];
+  $('#h-checklist').innerHTML=items.map(i=>`<label class="flex items-center gap-3 bg-white/60 dark:bg-slate-800/40 rounded-xl px-3 py-2.5 cursor-pointer border border-slate-200 dark:border-slate-700"><input type="checkbox" class="ck w-4 h-4 accent-indigo-600" data-k="${i.k}" ${st[i.k]?'checked':''}><span class="text-sm ${st[i.k]?'line-through text-slate-400':''}">${i.t}</span></label>`).join('');
+  const done=items.filter(i=>st[i.k]).length;$('#h-prog').textContent=`${done}/${items.length}`;
+  $$('.ck',$('#h-checklist')).forEach(c=>c.addEventListener('change',async()=>{st[c.dataset.k]=c.checked;localStorage.setItem(k,JSON.stringify(st));if(c.checked)await registrarSessao();renderChecklist(materia,mq,mm,due);$('#streak').textContent=await calcStreak();}));
 }
-async function renderFoco(matsFallback){
+async function renderFoco(matsFb){
   const tops=await db.editalTopicos.where('concursoId').equals(estado.concursoId).toArray();
   if(tops.length){
-    const g={}; tops.forEach(t=>{g[t.disciplina]=g[t.disciplina]||{n:0,alta:0};g[t.disciplina].n++;if(t.alta)g[t.disciplina].alta++;});
-    const rank=Object.entries(g).map(([d,v])=>({d,score:v.alta*2+v.n,alta:v.alta})).sort((a,b)=>b.score-a.score).slice(0,6);
-    const max=rank[0]?.score||1;
-    $('#h-foco').innerHTML=rank.map(r=>{const p=Math.round(r.score/max*100);return `<div><div class="flex justify-between text-xs mb-0.5"><span>${r.d}</span>${r.alta?`<span class="text-red-400">${r.alta}🔴</span>`:''}</div><div class="h-2 bg-slate-700 rounded"><div class="h-2 rounded bg-brand-500" style="width:${p}%"></div></div></div>`;}).join('');
-  } else if(matsFallback&&matsFallback.length){
-    const max=matsFallback[0].peso||5;
-    $('#h-foco').innerHTML=matsFallback.slice(0,6).map(m=>{const p=Math.round(m.peso/max*100);return `<div><div class="flex justify-between text-xs mb-0.5"><span>${m.nome}</span><span class="text-slate-400">peso ${m.peso}</span></div><div class="h-2 bg-slate-700 rounded"><div class="h-2 rounded bg-brand-500" style="width:${p}%"></div></div></div>`;}).join('');
-  } else { $('#h-foco').innerHTML='<p class="text-slate-500 text-xs">Carregue um concurso (⚙️ Configurações) ou monte o Edital para ver o ranking.</p>'; }
+    const g={};tops.forEach(t=>{g[t.disciplina]=g[t.disciplina]||{n:0,alta:0};g[t.disciplina].n++;if(t.alta)g[t.disciplina].alta++;});
+    const rank=Object.entries(g).map(([d,v])=>({d,s:v.alta*2+v.n,alta:v.alta})).sort((a,b)=>b.s-a.s).slice(0,6),max=rank[0]?.s||1;
+    $('#h-foco').innerHTML=rank.map(r=>`<div><div class="flex justify-between text-xs mb-1"><span>${r.d}</span>${r.alta?`<span class="text-red-500">${r.alta}🔥</span>`:''}</div><div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full"><div class="bar-fill h-2 rounded-full" style="width:${Math.round(r.s/max*100)}%;background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div></div></div>`).join('');
+  } else if(matsFb?.length){const max=matsFb[0].peso||5;$('#h-foco').innerHTML=matsFb.slice(0,6).map(m=>`<div><div class="flex justify-between text-xs mb-1"><span>${m.nome}</span><span class="text-slate-400">peso ${m.peso}</span></div><div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full"><div class="bar-fill h-2 rounded-full" style="width:${Math.round(m.peso/max*100)}%;background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div></div></div>`).join('');}
+  else $('#h-foco').innerHTML='<p class="text-slate-400 text-xs">Carregue um concurso em Ajustes.</p>';
 }
-$('#rg-salvar').addEventListener('click', async ()=>{
-  const materia=$('#rg-materia').value,tipo=$('#rg-tipo').value;
-  const minutos=+$('#rg-min').value||0,q=+$('#rg-q').value||0;
-  const acertos=$('#rg-acertos').value===''?null:+$('#rg-acertos').value;
-  if(!minutos&&!q){ toast('Informe ao menos minutos ou nº de questões.','err'); return; }
+$('#rg-salvar').addEventListener('click',async()=>{
+  const materia=$('#rg-materia').value,tipo=$('#rg-tipo').value,minutos=+$('#rg-min').value||0,q=+$('#rg-q').value||0,acertos=$('#rg-acertos').value===''?null:+$('#rg-acertos').value;
+  if(!minutos&&!q)return toast('Informe minutos ou questões.','err');
   await db.sessoes.add({concursoId:estado.concursoId,data:todayISO(),materia,tipo,minutos,questoes:q,acertos});
-  $('#rg-min').value=$('#rg-q').value=$('#rg-acertos').value=''; toast('Estudo registrado! 💪','ok'); renderHoje(); renderDashboard();
+  $('#rg-min').value=$('#rg-q').value=$('#rg-acertos').value='';toast('Registrado! 💪','ok');renderHoje();
 });
-$('#hoje-config').addEventListener('click', ()=> $('#hoje-metas').classList.toggle('hidden'));
-$('#meta-salvar').addEventListener('click', ()=>{ localStorage.setItem('meta_q',+$('#meta-q').value||0); localStorage.setItem('meta_min',+$('#meta-min').value||0); $('#hoje-metas').classList.add('hidden'); toast('Metas salvas.','ok'); renderHoje(); });
+$('#hoje-config').addEventListener('click',()=>$('#hoje-metas').classList.toggle('hidden'));
+$('#meta-salvar').addEventListener('click',()=>{localStorage.setItem('meta_q',+$('#meta-q').value||0);localStorage.setItem('meta_min',+$('#meta-min').value||0);$('#hoje-metas').classList.add('hidden');toast('Metas salvas.','ok');renderHoje();});
 
-/* =====================================================================
-   PAINEL
-   ===================================================================== */
-async function renderDashboard(){
-  $('#hoje-label').textContent = cap(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}));
-  const hoje=todayISO();
-  const cards=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray();
-  const due=cards.filter(c=>c.due<=hoje).length;
-  const resp=await db.respostas.toArray();
-  const sess=(await db.sessoes.toArray()).filter(s=>s.concursoId==null||s.concursoId===estado.concursoId);
-  const sessQk=sess.filter(s=>(+s.questoes||0)>0&&s.acertos!=null);
-  const manualTotalQ=sess.reduce((a,s)=>a+(+s.questoes||0),0);
-  const knownTotal=resp.length+sessQk.reduce((a,s)=>a+(+s.questoes||0),0);
-  const knownAcertos=resp.filter(r=>r.acertou).length+sessQk.reduce((a,s)=>a+(+s.acertos||0),0);
-  const pct=knownTotal?Math.round(knownAcertos/knownTotal*100):null;
-  $('#kpi-due').textContent=due; $('#kpi-acerto').textContent=pct===null?'—':pct+'%';
-  $('#kpi-questoes').textContent=resp.length+manualTotalQ; $('#kpi-cards').textContent=cards.length;
-  $('#due-badge').textContent=due; $('#streak').textContent=await calcStreak();
-  // desempenho
-  const porAssunto={};
-  resp.forEach(r=>{const a=r.assunto||'Geral';porAssunto[a]=porAssunto[a]||{t:0,a:0};porAssunto[a].t++;if(r.acertou)porAssunto[a].a++;});
-  sessQk.forEach(s=>{const a=s.materia||'Geral';porAssunto[a]=porAssunto[a]||{t:0,a:0};porAssunto[a].t+=(+s.questoes||0);porAssunto[a].a+=(+s.acertos||0);});
-  const ent=Object.entries(porAssunto).sort((x,y)=>(x[1].a/x[1].t)-(y[1].a/y[1].t));
-  const dl=$('#desempenho-list');
-  dl.innerHTML = ent.length? ent.map(([a,v])=>{const p=Math.round(v.a/v.t*100);const cor=p<60?'bg-red-500':p<80?'bg-orange-500':'bg-emerald-500';return `<div><div class="flex justify-between text-xs mb-0.5"><span class="text-slate-300">${a}</span><span>${p}% <span class="text-slate-500">(${v.a}/${v.t})</span></span></div><div class="h-2 bg-slate-700 rounded"><div class="h-2 rounded ${cor}" style="width:${p}%"></div></div></div>`;}).join('') : '<p class="text-slate-500">Registre questões (na tela Hoje) para ver seu desempenho.</p>';
-  // últimos 7 dias
-  const sl=$('#semana-list'); const linhas=[];
-  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const iso=d.toISOString().slice(0,10);
-    const ds=sess.filter(s=>s.data===iso); const mm=ds.reduce((a,s)=>a+(+s.minutos||0),0); const qq=ds.reduce((a,s)=>a+(+s.questoes||0),0);
-    const lbl=d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'});
-    linhas.push(`<div class="flex justify-between items-center ${iso===hoje?'text-brand-300':'text-slate-400'}"><span>${lbl}</span><span class="text-xs">${mm?mm+'min':'—'} ${qq?'· '+qq+'q':''}</span></div>`);
-  }
-  sl.innerHTML=linhas.join('');
-}
-
-/* =====================================================================
-   EDITAL
-   ===================================================================== */
-async function seedEdital(concursoId,estrutura){
-  for(const [disciplina,topicos] of estrutura){ let ordem=0; for(const [topico,alta] of topicos){ const ja=await db.editalTopicos.where('concursoId').equals(concursoId).filter(x=>x.disciplina===disciplina&&x.topico===topico).first(); if(!ja) await db.editalTopicos.add({concursoId,disciplina,topico,alta:alta?1:0,feito:0,ordem}); ordem++; } }
-}
+/* =================== EDITAL =================== */
+let edFiltro='todos';
+const statusOf=t=>t.status!=null?t.status:(t.feito?2:0);
 async function renderEdital(){
   const itens=await db.editalTopicos.where('concursoId').equals(estado.concursoId).toArray();
-  $('#ed-vazio').classList.toggle('hidden',itens.length>0); $('#ed-conteudo').innerHTML='';
-  const feitos=itens.filter(i=>i.feito).length, pct=itens.length?Math.round(feitos/itens.length*100):0;
-  $('#ed-pct').textContent=pct+'%'; $('#ed-bar').style.width=pct+'%'; $('#ed-feitos').textContent=feitos; $('#ed-total').textContent=itens.length;
-  if(itens.length===0) return;
-  const grupos={}; itens.forEach(i=>{(grupos[i.disciplina]=grupos[i.disciplina]||[]).push(i);});
-  const cont=$('#ed-conteudo');
+  $('#ed-vazio').classList.toggle('hidden',itens.length>0);
+  // KPIs
+  const dom=itens.filter(t=>statusOf(t)===2).length, est=itens.filter(t=>statusOf(t)===1).length;
+  const altas=itens.filter(t=>t.alta), altasDom=altas.filter(t=>statusOf(t)===2).length;
+  $('#ed-kpi-cob').textContent=altas.length?Math.round(altasDom/altas.length*100)+'%':'—';
+  $('#ed-kpi-prog').textContent=itens.length?Math.round(dom/itens.length*100)+'%':'0%';
+  $('#ed-feitos').textContent=dom;$('#ed-total').textContent=itens.length;$('#ed-kpi-est').textContent=est;
+  // acerto por disciplina
+  const resp=await db.respostas.toArray(),ac={};resp.forEach(r=>{const a=r.assunto||'';ac[a]=ac[a]||{t:0,a:0};ac[a].t++;if(r.acertou)ac[a].a++;});
+  const cont=$('#ed-conteudo');cont.innerHTML='';
+  const grupos={};itens.forEach(i=>{(grupos[i.disciplina]=grupos[i.disciplina]||[]).push(i);});
   for(const disc of Object.keys(grupos)){
-    const lista=grupos[disc].sort((a,b)=>(a.ordem||0)-(b.ordem||0));
-    const f=lista.filter(x=>x.feito).length,p=Math.round(f/lista.length*100);
-    const det=document.createElement('details'); det.className='bg-slate-800/40 rounded-xl border border-slate-800 overflow-hidden';
-    det.innerHTML=`<summary class="cursor-pointer px-4 py-3 flex items-center gap-3 select-none hover:bg-slate-800/60"><span class="font-semibold flex-1">${disc}</span><span class="text-xs text-slate-400">${f}/${lista.length}</span><span class="w-24 h-2 bg-slate-700 rounded hidden sm:block"><span class="block h-2 rounded ${p===100?'bg-emerald-500':'bg-brand-500'}" style="width:${p}%"></span></span></summary>
-      <div class="px-3 pb-3 space-y-1">${lista.map(i=>`<div class="flex items-start gap-2 rounded-lg px-2 py-2 hover:bg-slate-900/50"><input type="checkbox" class="ed-chk mt-0.5 w-4 h-4 shrink-0" data-id="${i.id}" ${i.feito?'checked':''}><span class="flex-1 text-sm ${i.feito?'line-through text-slate-500':''}">${i.alta?'🔴 ':''}${i.topico}</span><button class="ed-del text-slate-600 hover:text-red-400 text-xs shrink-0" data-id="${i.id}">×</button></div>`).join('')}</div>`;
+    let lista=grupos[disc].sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+    if(edFiltro==='falta')lista=lista.filter(t=>t.alta&&statusOf(t)!==2);
+    else if(edFiltro==='estudando')lista=lista.filter(t=>statusOf(t)===1);
+    else if(edFiltro==='dominado')lista=lista.filter(t=>statusOf(t)===2);
+    if(!lista.length)continue;
+    const all=grupos[disc],f=all.filter(t=>statusOf(t)===2).length,p=Math.round(f/all.length*100);
+    const acc=ac[disc]?Math.round(ac[disc].a/ac[disc].t*100):null;
+    const det=document.createElement('details');det.className='card overflow-hidden';det.open=(edFiltro!=='todos');
+    det.innerHTML=`<summary class="cursor-pointer px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+      <div class="relative shrink-0">${ring(p,42,'#6366f1')}<span class="absolute inset-0 grid place-items-center text-[10px] font-bold">${p}%</span></div>
+      <div class="flex-1 min-w-0"><div class="font-bold truncate">${disc}</div><div class="text-[11px] text-slate-400">${f}/${all.length} dominados${acc!=null?` · ${acc}% acerto`:''}</div></div>
+      <span class="text-slate-400 text-xs">▾</span></summary>
+      <div class="px-3 pb-3 space-y-1">${lista.map(i=>{const s=statusOf(i);const dot=['border-2 border-slate-300 dark:border-slate-600','bg-amber-400','bg-emerald-500'][s];return `
+        <div class="flex items-start gap-2.5 rounded-xl px-2 py-2">
+          <button class="ed-st w-5 h-5 rounded-full shrink-0 mt-0.5 ${dot}" data-id="${i.id}" title="status"></button>
+          <div class="flex-1 min-w-0"><span class="text-sm ${s===2?'line-through text-slate-400':''}">${i.alta?'🔥 ':''}${i.topico}</span>
+          <div class="flex gap-2 mt-1"><button class="ed-tr text-[11px] text-indigo-500 font-semibold" data-disc="${disc}">treinar</button><button class="ed-rv text-[11px] text-violet-500 font-semibold">rever</button></div></div>
+          <button class="ed-del text-slate-300 hover:text-red-400 text-xs shrink-0" data-id="${i.id}">×</button>
+        </div>`;}).join('')}</div>`;
     cont.appendChild(det);
   }
-  $$('.ed-chk',cont).forEach(ch=>ch.addEventListener('change',async ()=>{await db.editalTopicos.update(+ch.dataset.id,{feito:ch.checked?1:0});renderEdital();}));
-  $$('.ed-del',cont).forEach(b=>b.addEventListener('click',async ()=>{await db.editalTopicos.delete(+b.dataset.id);renderEdital();}));
+  $$('.ed-st',cont).forEach(b=>b.addEventListener('click',async()=>{const t=await db.editalTopicos.get(+b.dataset.id);const ns=(statusOf(t)+1)%3;await db.editalTopicos.update(t.id,{status:ns,feito:ns===2?1:0});if(ns)await registrarSessao();renderEdital();}));
+  $$('.ed-del',cont).forEach(b=>b.addEventListener('click',async()=>{await db.editalTopicos.delete(+b.dataset.id);renderEdital();}));
+  $$('.ed-tr',cont).forEach(b=>b.addEventListener('click',()=>{qFiltroPre=b.dataset.disc;showView('questoes');}));
+  $$('.ed-rv',cont).forEach(b=>b.addEventListener('click',()=>showView('revisao')));
 }
-$('#ed-add-abrir').addEventListener('click', ()=> $('#ed-add-form').classList.toggle('hidden'));
-$('#ed-add-salvar').addEventListener('click', async ()=>{
-  const disc=$('#ed-add-disc').value.trim(),top=$('#ed-add-top').value.trim();
-  if(!disc||!top){ toast('Preencha disciplina e tópico.','err'); return; }
-  const n=await db.editalTopicos.where('concursoId').equals(estado.concursoId).filter(x=>x.disciplina===disc).count();
-  await db.editalTopicos.add({concursoId:estado.concursoId,disciplina:disc,topico:top,alta:$('#ed-add-alta').checked?1:0,feito:0,ordem:n});
-  $('#ed-add-top').value=''; renderEdital(); toast('Tópico adicionado.','ok');
-});
+$$('.ed-filtro').forEach(b=>b.addEventListener('click',()=>{edFiltro=b.dataset.f;$$('.ed-filtro').forEach(x=>{x.classList.toggle('bg-indigo-600',x===b);x.classList.toggle('text-white',x===b);x.classList.toggle('bg-slate-100',x!==b);x.classList.toggle('dark:bg-slate-800',x!==b);});renderEdital();}));
+$('#ed-add-abrir').addEventListener('click',()=>$('#ed-add-form').classList.toggle('hidden'));
+$('#ed-add-salvar').addEventListener('click',async()=>{const d=$('#ed-add-disc').value.trim(),t=$('#ed-add-top').value.trim();if(!d||!t)return toast('Preencha tudo.','err');const n=await db.editalTopicos.where('concursoId').equals(estado.concursoId).filter(x=>x.disciplina===d).count();await db.editalTopicos.add({concursoId:estado.concursoId,disciplina:d,topico:t,alta:$('#ed-add-alta').checked?1:0,feito:0,status:0,ordem:n});$('#ed-add-top').value='';renderEdital();});
 
-/* =====================================================================
-   CRONOGRAMA + POMODORO
-   ===================================================================== */
-async function getCiclo(){ let c=await db.ciclo.where('concursoId').equals(estado.concursoId).first(); if(!c){const id=await db.ciclo.add({concursoId:estado.concursoId,materias:[],horasDia:3,blocos:[]});c=await db.ciclo.get(id);} return c; }
-async function renderCiclo(){
-  const c=await getCiclo(); $('#cic-horas').value=c.horasDia||3;
-  $('#cic-materias').innerHTML=(c.materias||[]).map((m,i)=>`<div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 text-sm"><span class="flex-1">${m.nome}</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700">peso ${m.peso}</span><button class="cic-del text-slate-600 hover:text-red-400" data-i="${i}">×</button></div>`).join('')||'<p class="text-slate-500 text-sm">Nenhuma matéria ainda.</p>';
-  $$('.cic-del').forEach(b=>b.addEventListener('click',async ()=>{c.materias.splice(+b.dataset.i,1);await db.ciclo.update(c.id,{materias:c.materias});renderCiclo();}));
-  const blocos=c.blocos||[]; const cont=$('#ciclo-blocos');
-  if(blocos.length===0){ cont.innerHTML='<p class="text-slate-500 text-sm">Cadastre matérias e clique em <b>Gerar ciclo</b>.</p>'; return; }
-  const feitos=blocos.filter(b=>b.feito).length;
-  cont.innerHTML=`<div class="text-xs text-slate-400 mb-1">${feitos}/${blocos.length} blocos concluídos ${feitos===blocos.length?'— ciclo completo! 🎉':''}</div>`+blocos.map((b,i)=>`<div class="flex items-center gap-3 rounded-lg px-3 py-3 border ${b.feito?'bg-emerald-900/20 border-emerald-800':'bg-slate-900 border-slate-800'}"><input type="checkbox" class="cic-feito w-4 h-4" data-i="${i}" ${b.feito?'checked':''}><span class="flex-1 text-sm ${b.feito?'line-through text-slate-500':''}">${b.nome}</span><span class="text-xs text-slate-400">${b.minutos} min</span></div>`).join('')+(feitos===blocos.length?'<button id="cic-reiniciar" class="mt-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">↻ Reiniciar ciclo</button>':'');
-  $$('.cic-feito').forEach(ch=>ch.addEventListener('change',async ()=>{c.blocos[+ch.dataset.i].feito=ch.checked;await db.ciclo.update(c.id,{blocos:c.blocos});renderCiclo();}));
-  $('#cic-reiniciar')?.addEventListener('click',async ()=>{c.blocos.forEach(b=>b.feito=false);await db.ciclo.update(c.id,{blocos:c.blocos});renderCiclo();});
-}
-$('#cic-add').addEventListener('click', async ()=>{ const nome=$('#cic-mat').value.trim(); if(!nome) return; const c=await getCiclo(); c.materias.push({nome,peso:+$('#cic-peso').value}); await db.ciclo.update(c.id,{materias:c.materias}); $('#cic-mat').value=''; renderCiclo(); });
-$('#cic-gerar').addEventListener('click', async ()=>{
-  const c=await getCiclo(); if(!c.materias.length){ toast('Adicione matérias primeiro.','err'); return; }
-  const horas=Math.max(1,+$('#cic-horas').value||3); await db.ciclo.update(c.id,{horasDia:horas});
-  const totalMin=horas*60, soma=c.materias.reduce((s,m)=>s+m.peso,0); const blocos=[];
-  c.materias.forEach(m=>{ let min=Math.round(totalMin*(m.peso/soma)/30)*30; min=Math.max(30,min); blocos.push({nome:m.nome,minutos:min,feito:false}); });
-  blocos.sort((a,b)=>b.minutos-a.minutos); await db.ciclo.update(c.id,{blocos}); toast('Ciclo gerado!','ok'); renderCiclo();
-});
-let pomo={secs:25*60,fase:'foco',running:false,timer:null,count:0};
-function pomoRender(){ const m=String(Math.floor(pomo.secs/60)).padStart(2,'0'),s=String(pomo.secs%60).padStart(2,'0'); $('#pomo-display').textContent=`${m}:${s}`; $('#pomo-fase').textContent=pomo.fase==='foco'?'Foco':'Pausa'; $('#pomo-toggle').textContent=pomo.running?'Pausar':'Iniciar'; $('#pomo-count').textContent=pomo.count; }
-$('#pomo-toggle').addEventListener('click', ()=>{
-  pomo.running=!pomo.running;
-  if(pomo.running){ pomo.timer=setInterval(async ()=>{ pomo.secs--; if(pomo.secs<=0){ clearInterval(pomo.timer); pomo.running=false; if(pomo.fase==='foco'){ pomo.count++; await registrarSessao(); toast('Pomodoro concluído! Pausa. ☕','ok'); pomo.fase='pausa'; pomo.secs=5*60; } else { toast('Pausa encerrada. Bora!','info'); pomo.fase='foco'; pomo.secs=25*60; } } pomoRender(); },1000); } else clearInterval(pomo.timer);
-  pomoRender();
-});
-$('#pomo-reset').addEventListener('click', ()=>{ clearInterval(pomo.timer); pomo={secs:25*60,fase:'foco',running:false,timer:null,count:pomo.count}; pomoRender(); });
-pomoRender();
-
-/* =====================================================================
-   FLASHCARDS (manual + SM-2)
-   ===================================================================== */
-$('#abrir-card-manual').addEventListener('click', ()=> $('#card-manual').classList.toggle('hidden'));
-$('#cm-salvar').addEventListener('click', async ()=>{
-  const frente=$('#cm-frente').value.trim(),verso=$('#cm-verso').value.trim(),assunto=$('#cm-assunto').value.trim()||'Geral';
-  if(!frente||!verso){ toast('Preencha frente e verso.','err'); return; }
-  await novoCard(frente,verso,assunto); $('#cm-frente').value=$('#cm-verso').value=''; toast('Card criado!','ok'); renderCards(); renderDashboard();
-});
-async function novoCard(frente,verso,assunto){ await db.flashcards.add({concursoId:estado.concursoId,frente,verso,assunto,due:todayISO(),intervalo:0,ef:2.5,reps:0,criado:todayISO()}); }
-function agendar(card,grade){ let {ef=2.5,intervalo=0,reps=0}=card; if(grade<3){reps=0;intervalo=1;} else { reps+=1; if(reps===1)intervalo=1; else if(reps===2)intervalo=6; else intervalo=Math.round(intervalo*ef); ef=Math.max(1.3,ef+(0.1-(5-grade)*(0.08+(5-grade)*0.02))); } const d=new Date(); d.setDate(d.getDate()+intervalo); return {ef,intervalo,reps,due:d.toISOString().slice(0,10)}; }
-let filaRevisao=[],cardAtual=null;
-async function iniciarRevisao(){ const hoje=todayISO(); const todos=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray(); filaRevisao=todos.filter(c=>c.due<=hoje); proximoCard(); renderCards(); }
-function proximoCard(){
-  const ativo=$('#revisao-ativo'),vazio=$('#revisao-vazio');
-  if(filaRevisao.length===0){ ativo.classList.add('hidden'); vazio.classList.remove('hidden'); return; }
-  vazio.classList.add('hidden'); ativo.classList.remove('hidden'); cardAtual=filaRevisao[0];
-  $('#rev-restantes').textContent=filaRevisao.length; $('#rev-assunto').textContent=cardAtual.assunto;
-  $('#rev-frente').textContent=cardAtual.frente; $('#rev-verso').textContent=cardAtual.verso;
-  $('#rev-verso').classList.add('hidden'); $('#rev-grades').classList.add('hidden'); $('#rev-mostrar').classList.remove('hidden');
-}
-$('#rev-mostrar').addEventListener('click', ()=>{ $('#rev-verso').classList.remove('hidden'); $('#rev-grades').classList.remove('hidden'); $('#rev-mostrar').classList.add('hidden'); });
-$$('#rev-grades button').forEach(b=>b.addEventListener('click', async ()=>{ const upd=agendar(cardAtual,+b.dataset.grade); await db.flashcards.update(cardAtual.id,upd); await registrarSessao(); filaRevisao.shift(); proximoCard(); renderCards(); $('#due-badge').textContent=(await db.flashcards.where('concursoId').equals(estado.concursoId).toArray()).filter(c=>c.due<=todayISO()).length; }));
-async function renderCards(){
-  const lista=await db.flashcards.where('concursoId').equals(estado.concursoId).reverse().toArray();
-  $('#cards-total').textContent=lista.length;
-  $('#cards-list').innerHTML=lista.map(c=>`<div class="bg-slate-800/40 rounded-lg p-3 border border-slate-800 text-sm"><div class="flex justify-between items-start gap-2"><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">${c.assunto}</span><button class="del-c text-slate-600 hover:text-red-400 text-xs" data-id="${c.id}">×</button></div><p class="mt-1 font-medium">${c.frente}</p><p class="mt-1 text-slate-400 text-xs">${c.verso}</p><p class="mt-1 text-[10px] text-slate-600">revisar em: ${c.due}</p></div>`).join('');
-  $$('.del-c',$('#cards-list')).forEach(b=>b.addEventListener('click',async ()=>{await db.flashcards.delete(+b.dataset.id);renderCards();iniciarRevisao();}));
-}
-
-/* =====================================================================
-   LEIS (consulta — sem IA)
-   ===================================================================== */
-$('#lei-nova').addEventListener('click', ()=> $('#lei-form').classList.toggle('hidden'));
-$('#lei-cancelar').addEventListener('click', ()=> $('#lei-form').classList.add('hidden'));
-$('#lei-salvar').addEventListener('click', async ()=>{
-  const titulo=$('#lei-titulo').value.trim(),texto=$('#lei-texto').value.trim();
-  if(!titulo||!texto){ toast('Preencha título e texto.','err'); return; }
-  await db.leis.add({concursoId:estado.concursoId,titulo,texto,criado:todayISO()});
-  $('#lei-titulo').value=$('#lei-texto').value=''; $('#lei-form').classList.add('hidden'); toast('Lei salva!','ok'); renderLeis();
-});
-function linkify(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" class="text-brand-400 underline break-all">$1</a>'); }
-function dividirArtigos(texto){ const partes=texto.split(/(?=Art\.?\s*\d+)/g).map(s=>s.trim()).filter(Boolean); if(partes.length<=1) return [{conteudo:texto}]; return partes.map(p=>({conteudo:p})); }
-async function renderLeis(){
-  const lista=await db.leis.where('concursoId').equals(estado.concursoId).reverse().toArray();
-  $('#lei-lista').innerHTML=lista.length?lista.map(l=>`<button class="lei-item w-full text-left px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-800 text-sm flex justify-between items-center" data-id="${l.id}"><span>${l.titulo}</span><span class="lei-del text-slate-600 hover:text-red-400" data-id="${l.id}">×</span></button>`).join(''):'<p class="text-slate-500 text-sm">Nenhuma lei adicionada.</p>';
-  $$('.lei-item').forEach(b=>b.addEventListener('click',e=>{if(e.target.classList.contains('lei-del'))return;abrirLei(+b.dataset.id);}));
-  $$('.lei-del').forEach(b=>b.addEventListener('click',async e=>{e.stopPropagation();await db.leis.delete(+b.dataset.id);renderLeis();$('#lei-leitor').innerHTML='<p class="text-slate-500 text-sm">Selecione uma lei.</p>';}));
-}
-async function abrirLei(id){
-  const lei=await db.leis.get(id); const arts=dividirArtigos(lei.texto);
-  $('#lei-leitor').innerHTML=`<h2 class="font-semibold mb-3">${lei.titulo}</h2><div class="space-y-3 max-h-[65vh] overflow-y-auto pr-1">${arts.map(a=>`<div class="bg-slate-900 rounded-lg p-3 border border-slate-800"><p class="text-sm whitespace-pre-wrap leading-relaxed">${linkify(a.conteudo)}</p></div>`).join('')}</div>`;
-}
-
-/* =====================================================================
-   SIMULADOS (registro manual)
-   ===================================================================== */
-$('#simreg-salvar').addEventListener('click', async ()=>{
-  const foco=$('#simreg-foco').value.trim()||'Simulado', total=+$('#simreg-total').value||0, acertos=+$('#simreg-acertos').value||0, minutos=+$('#simreg-min').value||0;
-  if(!total){ toast('Informe o nº de questões.','err'); return; }
-  await db.simulados.add({concursoId:estado.concursoId,data:todayISO(),materia:foco,total,acertos,tempoSeg:minutos*60});
-  await db.sessoes.add({concursoId:estado.concursoId,data:todayISO(),materia:foco,tipo:'simulado',minutos,questoes:total,acertos});
-  $('#simreg-foco').value=$('#simreg-total').value=$('#simreg-acertos').value=$('#simreg-min').value='';
-  toast('Simulado registrado!','ok'); renderSimHistorico(); renderDashboard();
-});
-async function renderSimHistorico(){
-  const lista=await db.simulados.where('concursoId').equals(estado.concursoId).reverse().toArray();
-  $('#sim-historico').innerHTML=lista.length?lista.map(s=>{const p=s.total?Math.round(s.acertos/s.total*100):0;return `<div class="flex justify-between items-center bg-slate-800/40 rounded-lg px-4 py-2 border border-slate-800 text-sm"><span>${s.data} · ${s.materia||'Simulado'}</span><span>${s.acertos}/${s.total} · <b class="${p<60?'text-red-400':p<80?'text-orange-400':'text-emerald-400'}">${p}%</b></span></div>`;}).join(''):'<p class="text-slate-500 text-sm">Nenhum simulado registrado ainda.</p>';
-}
-
-/* =====================================================================
-   QUESTÕES (banco autoral, comentado — sem IA)
-   ===================================================================== */
+/* =================== QUESTÕES =================== */
 async function renderQuestoes(){
   const todas=await db.questoes.where('concursoId').equals(estado.concursoId).toArray();
   $('#questoes-empty').classList.toggle('hidden',todas.length>0);
   const assuntos=[...new Set(todas.map(q=>q.assunto))].sort();
-  const fSel=$('#q-filtro'); const atual=fSel.value||'todos';
-  fSel.innerHTML=`<option value="todos">Todos (${todas.length})</option>`+assuntos.map(a=>`<option value="${a}" ${a===atual?'selected':''}>${a}</option>`).join('');
-  const filtro=fSel.value;
-  const lista=filtro==='todos'?todas:todas.filter(q=>q.assunto===filtro);
-  const cont=$('#questoes-list'); cont.innerHTML='';
+  const sel=$('#q-filtro');const atual=qFiltroPre||sel.value||'todos';qFiltroPre=null;
+  sel.innerHTML=`<option value="todos">Todos (${todas.length})</option>`+assuntos.map(a=>`<option value="${a}" ${a===atual?'selected':''}>${a}</option>`).join('');
+  const filtro=sel.value,lista=filtro==='todos'?todas:todas.filter(q=>q.assunto===filtro);
+  const cont=$('#questoes-list');cont.innerHTML='';
   for(const q of lista){
-    const card=document.createElement('div'); card.className='bg-slate-800/40 rounded-xl p-4 border border-slate-800';
-    const isCE=q.tipo==='ce';
-    const opts=isCE
-      ? `<div class="flex gap-2 mt-3"><button class="resp px-4 py-2 rounded-lg bg-slate-800 hover:bg-emerald-700 border border-slate-700 text-sm" data-r="C">Certo</button><button class="resp px-4 py-2 rounded-lg bg-slate-800 hover:bg-red-700 border border-slate-700 text-sm" data-r="E">Errado</button></div>`
-      : `<div class="space-y-1 mt-3">${(q.alternativas||[]).map(a=>{const L=a.trim().charAt(0).toUpperCase();return `<button class="resp w-full text-left px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm" data-r="${L}">${a}</button>`;}).join('')}</div>`;
-    card.innerHTML=`<div class="flex justify-between items-start gap-2"><span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300">${q.assunto}</span></div><p class="mt-2 text-sm leading-relaxed">${q.enunciado}</p>${opts}<div class="feedback hidden mt-3 text-sm rounded-lg p-3"></div>`;
-    card.querySelectorAll('.resp').forEach(btn=>btn.addEventListener('click',async ()=>{
-      const r=btn.dataset.r, acertou=r===q.gabarito;
-      await db.respostas.add({questaoId:q.id,data:todayISO(),acertou:acertou?1:0,assunto:q.assunto});
-      await registrarSessao();
-      const fb=card.querySelector('.feedback'); fb.classList.remove('hidden');
-      fb.className=`feedback mt-3 text-sm rounded-lg p-3 border ${acertou?'bg-emerald-900/30 border-emerald-800 text-emerald-200':'bg-red-900/30 border-red-800 text-red-200'}`;
-      fb.innerHTML=`<b>${acertou?'✅ Acertou!':'❌ Errou.'}</b> Gabarito: <b>${q.gabarito}</b><br><span class="text-slate-300">${q.comentario||''}</span>`;
+    const card=document.createElement('div');card.className='card p-4';
+    const opts=q.tipo==='ce'?`<div class="flex gap-2 mt-3"><button class="resp btn-ghost" data-r="C">Certo</button><button class="resp btn-ghost" data-r="E">Errado</button></div>`:`<div class="space-y-1 mt-3">${(q.alternativas||[]).map(a=>`<button class="resp w-full text-left btn-ghost" data-r="${a.trim().charAt(0).toUpperCase()}">${a}</button>`).join('')}</div>`;
+    card.innerHTML=`<span class="chip bg-slate-100 dark:bg-slate-800 text-slate-500">${q.assunto}</span><p class="mt-2 text-sm leading-relaxed">${q.enunciado}</p>${opts}<div class="fb hidden mt-3 text-sm rounded-xl p-3"></div>`;
+    card.querySelectorAll('.resp').forEach(btn=>btn.addEventListener('click',async()=>{
+      const ok=btn.dataset.r===q.gabarito;await db.respostas.add({questaoId:q.id,data:todayISO(),acertou:ok?1:0,assunto:q.assunto});await registrarSessao();
+      const fb=card.querySelector('.fb');fb.classList.remove('hidden');fb.className=`fb mt-3 text-sm rounded-xl p-3 border ${ok?'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-200':'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800 text-red-700 dark:text-red-200'}`;
+      fb.innerHTML=`<b>${ok?'✅ Acertou!':'❌ Errou.'}</b> Gabarito: <b>${q.gabarito}</b><br><span class="text-slate-600 dark:text-slate-300">${q.comentario||''}</span>`;
       card.querySelectorAll('.resp').forEach(b=>b.disabled=true);
     }));
     cont.appendChild(card);
   }
 }
-$('#q-filtro').addEventListener('change', ()=>renderQuestoes());
+$('#q-filtro').addEventListener('change',renderQuestoes);
 
-/* =====================================================================
-   PRESETS (edital + ciclo + leis + flashcards + questões) — Amapá
-   ===================================================================== */
+/* =================== REVISÃO (flashcards) =================== */
+$('#abrir-card').addEventListener('click',()=>$('#card-form').classList.toggle('hidden'));
+$('#cm-salvar').addEventListener('click',async()=>{const f=$('#cm-frente').value.trim(),v=$('#cm-verso').value.trim(),a=$('#cm-assunto').value.trim()||'Geral';if(!f||!v)return toast('Frente e verso.','err');await novoCard(f,v,a);$('#cm-frente').value=$('#cm-verso').value='';toast('Card criado!','ok');renderCards();});
+async function novoCard(f,v,a){await db.flashcards.add({concursoId:estado.concursoId,frente:f,verso:v,assunto:a,due:todayISO(),intervalo:0,ef:2.5,reps:0,criado:todayISO()});}
+function agendar(c,g){let{ef=2.5,intervalo=0,reps=0}=c;if(g<3){reps=0;intervalo=1;}else{reps++;intervalo=reps===1?1:reps===2?6:Math.round(intervalo*ef);ef=Math.max(1.3,ef+(0.1-(5-g)*(0.08+(5-g)*0.02)));}const d=new Date();d.setDate(d.getDate()+intervalo);return{ef,intervalo,reps,due:d.toISOString().slice(0,10)};}
+let fila=[],atual=null;
+async function iniciarRevisao(){const h=todayISO();fila=(await db.flashcards.where('concursoId').equals(estado.concursoId).toArray()).filter(c=>c.due<=h);prox();renderCards();}
+function prox(){const a=$('#rev-ativo'),v=$('#rev-vazio');if(!fila.length){a.classList.add('hidden');v.classList.remove('hidden');return;}v.classList.add('hidden');a.classList.remove('hidden');atual=fila[0];$('#rev-rest').textContent=fila.length;$('#rev-assunto').textContent=atual.assunto;$('#rev-frente').textContent=atual.frente;$('#rev-verso').textContent=atual.verso;$('#rev-verso').classList.add('hidden');$('#rev-grades').classList.add('hidden');$('#rev-mostrar').classList.remove('hidden');}
+$('#rev-mostrar').addEventListener('click',()=>{$('#rev-verso').classList.remove('hidden');$('#rev-grades').classList.remove('hidden');$('#rev-mostrar').classList.add('hidden');});
+$$('#rev-grades button').forEach(b=>b.addEventListener('click',async()=>{await db.flashcards.update(atual.id,agendar(atual,+b.dataset.g));await registrarSessao();fila.shift();prox();renderCards();$('#streak').textContent=await calcStreak();}));
+async function renderCards(){const l=await db.flashcards.where('concursoId').equals(estado.concursoId).reverse().toArray();$('#cards-total').textContent=l.length;$('#cards-list').innerHTML=l.map(c=>`<div class="card p-3 text-sm"><div class="flex justify-between"><span class="chip bg-slate-100 dark:bg-slate-800 text-slate-500">${c.assunto}</span><button class="del-c text-slate-300 hover:text-red-400" data-id="${c.id}">×</button></div><p class="mt-1 font-medium">${c.frente}</p><p class="mt-1 text-slate-400 text-xs">${c.verso}</p><p class="mt-1 text-[10px] text-slate-400">revisar: ${c.due}</p></div>`).join('');$$('.del-c',$('#cards-list')).forEach(b=>b.addEventListener('click',async()=>{await db.flashcards.delete(+b.dataset.id);renderCards();iniciarRevisao();}));}
+
+/* =================== DESEMPENHO =================== */
+async function renderDesempenho(){
+  const h=todayISO();
+  const cards=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray();
+  const resp=await db.respostas.toArray();
+  const sess=(await db.sessoes.toArray()).filter(s=>s.concursoId==null||s.concursoId===estado.concursoId);
+  const sqk=sess.filter(s=>(+s.questoes||0)>0&&s.acertos!=null);
+  const total=resp.length+sqk.reduce((a,s)=>a+(+s.questoes||0),0);
+  const ac=resp.filter(r=>r.acertou).length+sqk.reduce((a,s)=>a+(+s.acertos||0),0);
+  $('#kpi-acerto').textContent=total?Math.round(ac/total*100)+'%':'—';
+  $('#kpi-q').textContent=resp.length+sess.reduce((a,s)=>a+(+s.questoes||0),0);
+  $('#kpi-cards').textContent=cards.length;$('#kpi-streak').textContent=await calcStreak();
+  const pa={};resp.forEach(r=>{const a=r.assunto||'Geral';pa[a]=pa[a]||{t:0,a:0};pa[a].t++;if(r.acertou)pa[a].a++;});
+  sqk.forEach(s=>{const a=s.materia||'Geral';pa[a]=pa[a]||{t:0,a:0};pa[a].t+=(+s.questoes||0);pa[a].a+=(+s.acertos||0);});
+  const ent=Object.entries(pa).sort((x,y)=>(x[1].a/x[1].t)-(y[1].a/y[1].t));
+  $('#desempenho-list').innerHTML=ent.length?ent.map(([a,v])=>{const p=Math.round(v.a/v.t*100),col=p<60?'#ef4444':p<80?'#f59e0b':'#10b981';return `<div><div class="flex justify-between text-xs mb-1"><span>${a}</span><span>${p}% <span class="text-slate-400">(${v.a}/${v.t})</span></span></div><div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full"><div class="bar-fill h-2 rounded-full" style="width:${p}%;background:${col}"></div></div></div>`;}).join(''):'<p class="text-slate-400 text-sm">Registre questões para ver aqui.</p>';
+  const maxMin=Math.max(60,...[...Array(14)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);const iso=d.toISOString().slice(0,10);return sess.filter(s=>s.data===iso).reduce((a,s)=>a+(+s.minutos||0),0);}));
+  let bars='';for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const iso=d.toISOString().slice(0,10);const mm=sess.filter(s=>s.data===iso).reduce((a,s)=>a+(+s.minutos||0),0);const hp=Math.max(4,Math.round(mm/maxMin*100));bars+=`<div class="flex-1 flex flex-col items-center justify-end h-full" title="${iso}: ${mm}min"><div class="w-full rounded-t ${iso===h?'':'opacity-70'}" style="height:${hp}%;background:linear-gradient(180deg,#6366f1,#8b5cf6)"></div></div>`;}
+  $('#semana-bars').innerHTML=bars;
+}
+
+/* =================== CRONOGRAMA =================== */
+async function getCiclo(){let c=await db.ciclo.where('concursoId').equals(estado.concursoId).first();if(!c){const id=await db.ciclo.add({concursoId:estado.concursoId,materias:[],horasDia:3,blocos:[]});c=await db.ciclo.get(id);}return c;}
+async function renderCiclo(){
+  const c=await getCiclo();$('#cic-horas').value=c.horasDia||3;
+  $('#cic-materias').innerHTML=(c.materias||[]).map((m,i)=>`<div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-sm"><span class="flex-1">${m.nome}</span><span class="chip bg-slate-200 dark:bg-slate-700">peso ${m.peso}</span><button class="cd text-slate-300 hover:text-red-400" data-i="${i}">×</button></div>`).join('')||'<p class="text-slate-400 text-sm">Nenhuma matéria.</p>';
+  $$('.cd').forEach(b=>b.addEventListener('click',async()=>{c.materias.splice(+b.dataset.i,1);await db.ciclo.update(c.id,{materias:c.materias});renderCiclo();}));
+  const bl=c.blocos||[];if(!bl.length){$('#ciclo-blocos').innerHTML='<p class="text-slate-400 text-sm">Gere o ciclo.</p>';return;}
+  const f=bl.filter(b=>b.feito).length;
+  $('#ciclo-blocos').innerHTML=`<div class="text-xs text-slate-400 mb-1">${f}/${bl.length} blocos ${f===bl.length?'— completo! 🎉':''}</div>`+bl.map((b,i)=>`<div class="flex items-center gap-3 rounded-xl px-3 py-3 border ${b.feito?'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-800':'card'}"><input type="checkbox" class="cf w-4 h-4 accent-indigo-600" data-i="${i}" ${b.feito?'checked':''}><span class="flex-1 text-sm ${b.feito?'line-through text-slate-400':''}">${b.nome}</span><span class="text-xs text-slate-400">${b.minutos}min</span></div>`).join('')+(f===bl.length?'<button id="cic-re" class="btn-ghost mt-2">↻ Reiniciar</button>':'');
+  $$('.cf').forEach(c2=>c2.addEventListener('change',async()=>{c.blocos[+c2.dataset.i].feito=c2.checked;await db.ciclo.update(c.id,{blocos:c.blocos});renderCiclo();}));
+  $('#cic-re')?.addEventListener('click',async()=>{c.blocos.forEach(b=>b.feito=false);await db.ciclo.update(c.id,{blocos:c.blocos});renderCiclo();});
+}
+$('#cic-add').addEventListener('click',async()=>{const n=$('#cic-mat').value.trim();if(!n)return;const c=await getCiclo();c.materias.push({nome:n,peso:+$('#cic-peso').value});await db.ciclo.update(c.id,{materias:c.materias});$('#cic-mat').value='';renderCiclo();});
+$('#cic-gerar').addEventListener('click',async()=>{const c=await getCiclo();if(!c.materias.length)return toast('Adicione matérias.','err');const horas=Math.max(1,+$('#cic-horas').value||3);await db.ciclo.update(c.id,{horasDia:horas});const tot=horas*60,soma=c.materias.reduce((s,m)=>s+m.peso,0);const bl=c.materias.map(m=>({nome:m.nome,minutos:Math.max(30,Math.round(tot*(m.peso/soma)/30)*30),feito:false})).sort((a,b)=>b.minutos-a.minutos);await db.ciclo.update(c.id,{blocos:bl});toast('Ciclo gerado!','ok');renderCiclo();});
+let pomo={s:1500,fase:'foco',run:false,t:null,c:0};
+function pr(){$('#pomo-display').textContent=`${String(Math.floor(pomo.s/60)).padStart(2,'0')}:${String(pomo.s%60).padStart(2,'0')}`;$('#pomo-fase').textContent=pomo.fase==='foco'?'Foco':'Pausa';$('#pomo-toggle').textContent=pomo.run?'Pausar':'Iniciar';$('#pomo-count').textContent=pomo.c;}
+$('#pomo-toggle').addEventListener('click',()=>{pomo.run=!pomo.run;if(pomo.run){pomo.t=setInterval(async()=>{pomo.s--;if(pomo.s<=0){clearInterval(pomo.t);pomo.run=false;if(pomo.fase==='foco'){pomo.c++;await registrarSessao();toast('Pomodoro! Pausa ☕','ok');pomo.fase='pausa';pomo.s=300;}else{toast('Bora!','info');pomo.fase='foco';pomo.s=1500;}}pr();},1000);}else clearInterval(pomo.t);pr();});
+$('#pomo-reset').addEventListener('click',()=>{clearInterval(pomo.t);pomo={s:1500,fase:'foco',run:false,t:null,c:pomo.c};pr();});pr();
+
+/* =================== LEIS =================== */
+function linkify(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" class="text-indigo-500 underline break-all">$1</a>');}
+function dividirArtigos(t){const p=t.split(/(?=Art\.?\s*\d+)/g).map(s=>s.trim()).filter(Boolean);return p.length<=1?[{c:t}]:p.map(x=>({c:x}));}
+$('#lei-nova').addEventListener('click',()=>$('#lei-form').classList.toggle('hidden'));
+$('#lei-cancelar').addEventListener('click',()=>$('#lei-form').classList.add('hidden'));
+$('#lei-salvar').addEventListener('click',async()=>{const t=$('#lei-titulo').value.trim(),x=$('#lei-texto').value.trim();if(!t||!x)return toast('Preencha tudo.','err');await db.leis.add({concursoId:estado.concursoId,titulo:t,texto:x,criado:todayISO()});$('#lei-titulo').value=$('#lei-texto').value='';$('#lei-form').classList.add('hidden');toast('Lei salva!','ok');renderLeis();});
+async function renderLeis(){const l=await db.leis.where('concursoId').equals(estado.concursoId).reverse().toArray();$('#lei-lista').innerHTML=l.length?l.map(x=>`<button class="li w-full text-left card px-3 py-2.5 text-sm flex justify-between items-center" data-id="${x.id}"><span>${x.titulo}</span><span class="ld text-slate-300 hover:text-red-400" data-id="${x.id}">×</span></button>`).join(''):'<p class="text-slate-400 text-sm">Nenhuma lei.</p>';$$('.li').forEach(b=>b.addEventListener('click',e=>{if(e.target.classList.contains('ld'))return;abrirLei(+b.dataset.id);}));$$('.ld').forEach(b=>b.addEventListener('click',async e=>{e.stopPropagation();await db.leis.delete(+b.dataset.id);renderLeis();$('#lei-leitor').innerHTML='<p class="text-slate-400 text-sm">Selecione uma lei.</p>';}));}
+async function abrirLei(id){const lei=await db.leis.get(id);const a=dividirArtigos(lei.texto);$('#lei-leitor').innerHTML=`<h2 class="font-bold mb-3">${lei.titulo}</h2><div class="space-y-3 max-h-[65vh] overflow-y-auto pr-1">${a.map(x=>`<div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3"><p class="text-sm whitespace-pre-wrap leading-relaxed">${linkify(x.c)}</p></div>`).join('')}</div>`;}
+
+/* =================== SIMULADOS =================== */
+$('#simreg-salvar').addEventListener('click',async()=>{const foco=$('#simreg-foco').value.trim()||'Simulado',total=+$('#simreg-total').value||0,acertos=+$('#simreg-acertos').value||0,min=+$('#simreg-min').value||0;if(!total)return toast('Informe as questões.','err');await db.simulados.add({concursoId:estado.concursoId,data:todayISO(),materia:foco,total,acertos,tempoSeg:min*60});await db.sessoes.add({concursoId:estado.concursoId,data:todayISO(),materia:foco,tipo:'simulado',minutos:min,questoes:total,acertos});$('#simreg-foco').value=$('#simreg-total').value=$('#simreg-acertos').value=$('#simreg-min').value='';toast('Simulado registrado!','ok');renderSimHistorico();});
+async function renderSimHistorico(){const l=await db.simulados.where('concursoId').equals(estado.concursoId).reverse().toArray();$('#sim-historico').innerHTML=l.length?l.map(s=>{const p=s.total?Math.round(s.acertos/s.total*100):0;return `<div class="flex justify-between items-center card px-4 py-2.5 text-sm"><span>${s.data} · ${s.materia}</span><span>${s.acertos}/${s.total} · <b style="color:${p<60?'#ef4444':p<80?'#f59e0b':'#10b981'}">${p}%</b></span></div>`;}).join(''):'<p class="text-slate-400 text-sm">Nenhum simulado ainda.</p>';}
+
+/* =================== DADOS (edital + flashcards + questões + presets) =================== */
+async function seedEdital(concursoId,estrutura){for(const[disciplina,topicos]of estrutura){let ordem=0;for(const[topico,alta]of topicos){const ja=await db.editalTopicos.where('concursoId').equals(concursoId).filter(x=>x.disciplina===disciplina&&x.topico===topico).first();if(!ja)await db.editalTopicos.add({concursoId,disciplina,topico,alta:alta?1:0,feito:0,status:0,ordem});ordem++;}}}
 const EDITAL_MACAPA=[
  ['Direito Constitucional',[['Constitucionalismo; poder constituinte originário e derivado',0],['Eficácia e aplicabilidade das normas constitucionais',0],['Direitos e garantias fundamentais (art. 5º)',1],['Direitos sociais (art. 6º e 7º)',0],['Remédios constitucionais (HC, MS, MI, HD, ação popular)',0],['Nacionalidade; direitos políticos; partidos',0],['Organização do Estado; federação',0],['Competências da União, Estados e Municípios (arts. 21-24, 30)',1],['Município: organização, Lei Orgânica, autonomia (arts. 29-31)',1],['Administração Pública na CF (arts. 37 a 41)',1],['Servidores públicos na CF; teto remuneratório',1],['Organização dos Poderes; funções essenciais à Justiça',0],['Processo legislativo',0],['Controle de constitucionalidade: difuso e concentrado',1],['ADI, ADC, ADPF, ADO',1],['Ordem econômica e financeira',0],['Ordem social',0]]],
  ['Direito Administrativo',[['Regime jurídico-administrativo; princípios (LIMPE + razoabilidade, proporcionalidade)',1],['Poderes e deveres do administrador',0],['Organização administrativa: direta e indireta; autarquias, fundações, EP e SEM',0],['Poderes administrativos; poder de polícia (atributos)',1],['Atos administrativos: conceito, elementos e atributos',1],['Atos: classificação, espécies, extinção (anulação, revogação, cassação, convalidação)',1],['Licitações — Lei 14.133/2021: princípios e fases',1],['Lei 14.133/21: modalidades e critérios de julgamento',1],['Lei 14.133/21: contratação direta (dispensa e inexigibilidade)',1],['Contratos administrativos: cláusulas exorbitantes, equilíbrio, sanções',1],['Serviços públicos; concessão, permissão e PPP (Lei 11.079/04)',0],['Agentes públicos: cargo, emprego, função; provimento; estabilidade',1],['Responsabilidade dos servidores; processo administrativo disciplinar',0],['Bens públicos: classificação, afetação, alienação',0],['Intervenção na propriedade; desapropriação (DL 3.365/41)',1],['Responsabilidade civil do Estado (art. 37, §6º): teorias e excludentes',1],['Controle da Administração: interno, externo e judicial; Tribunais de Contas',0],['Improbidade administrativa (Lei 8.429/92 com a Lei 14.230/21)',1],['Processo administrativo (Lei 9.784/99)',0],['LAI (Lei 12.527/11); LGPD na Administração',0]]],
@@ -688,7 +571,6 @@ const EDITAL_MACAPA=[
  ['Legislação Municipal de Macapá',[['Lei Orgânica do Município de Macapá — princípios e organização',1],['LOM — art. 232: a Procuradoria-Geral do Município (PROGEM)',1],['LC 136/2020 — organização e atribuições da PROGEM',1],['Discussão de constitucionalidade da LC 136/2020 (atuação do MPF)',1],['LC 122/2018 — Estatuto dos Servidores: posse, estágio, estabilidade',1],['LC 122/2018 — deveres, vedações e regime disciplinar',1],['LC 144/2021 (+209/2025) — Código Tributário Municipal',1]]],
  ['Língua Portuguesa',[['Compreensão e interpretação de texto',1],['Ortografia e acentuação',0],['Pontuação',0],['Classes de palavras; morfossintaxe',0],['Concordância verbal e nominal',1],['Regência verbal e nominal; crase',1],['Coesão, coerência e reescrita de frases',0]]],
 ];
-/* ---- Banco de FLASHCARDS (PGM Macapá) — [frente, verso, assunto] ---- */
 const FLASHCARDS_MACAPA=[
  ['Quais os princípios EXPRESSOS da Administração Pública (art. 37, CF)?','Legalidade, Impessoalidade, Moralidade, Publicidade e Eficiência — "LIMPE". (A eficiência foi incluída pela EC 19/98.)','Direito Administrativo'],
  ['Diferença entre ANULAÇÃO e REVOGAÇÃO do ato administrativo.','Anulação: por ILEGALIDADE, efeitos ex tunc (retroativos), pela Administração ou pelo Judiciário. Revogação: por conveniência e oportunidade, ato LEGAL, efeitos ex nunc, só pela própria Administração.','Direito Administrativo'],
@@ -727,7 +609,6 @@ const FLASHCARDS_MACAPA=[
  ['Controle de constitucionalidade: diferença entre difuso e concentrado.','Difuso: qualquer juiz/tribunal, no caso concreto, efeitos inter partes. Concentrado: no STF/TJ por ações próprias (ADI, ADC, ADPF), em tese, efeitos erga omnes e vinculante.','Direito Constitucional'],
  ['Competências do Município (art. 30, CF) — exemplos.','Legislar sobre assuntos de interesse local; suplementar a legislação federal e estadual; instituir e arrecadar seus tributos; organizar serviços públicos locais; promover ordenamento territorial e uso do solo urbano.','Direito Constitucional'],
 ];
-/* ---- Banco de QUESTÕES (PGM Macapá) — Certo/Errado comentadas ---- */
 const QUESTOES_MACAPA=[
  {assunto:'Direito Administrativo',gabarito:'E',enunciado:'A Lei 14.133/2021 manteve as modalidades tomada de preços e convite para contratações de menor valor.',comentario:'Errado. A nova Lei de Licitações extinguiu a tomada de preços e o convite. As modalidades são: pregão, concorrência, concurso, leilão e diálogo competitivo.'},
  {assunto:'Direito Administrativo',gabarito:'C',enunciado:'A responsabilidade civil do Estado por atos comissivos de seus agentes é objetiva, fundada na teoria do risco administrativo, admitindo causas excludentes ou atenuantes.',comentario:'Certo. Art. 37, §6º, CF. A teoria do risco administrativo permite excludentes como culpa exclusiva da vítima, força maior e caso fortuito.'},
@@ -751,31 +632,22 @@ const QUESTOES_MACAPA=[
  {assunto:'Legislação Municipal de Macapá',gabarito:'E',enunciado:'É compatível com a Constituição atribuir a servidores ocupantes exclusivamente de cargos em comissão as funções de representação judicial e consultoria jurídica do Município.',comentario:'Errado. A advocacia pública deve ser exercida por procuradores de carreira (efetivos). O MPF apontou a inconstitucionalidade de dispositivos da LC 136/2020 de Macapá nesse ponto.'},
  {assunto:'Direito do Trabalho e Processual',gabarito:'C',enunciado:'Comprovada a culpa na fiscalização do contrato, o ente público responde subsidiariamente pelas verbas trabalhistas dos empregados da empresa terceirizada.',comentario:'Certo. Súmula 331, V, do TST (culpa in vigilando).'},
  {assunto:'Direito Urbanístico',gabarito:'C',enunciado:'O IPTU progressivo no tempo é instrumento de indução do cumprimento da função social da propriedade urbana, aplicável ao solo urbano não edificado, subutilizado ou não utilizado.',comentario:'Certo. Art. 182, §4º, II, da CF e art. 7º do Estatuto da Cidade (Lei 10.257/01).'},
- // ===== Estatuto dos Servidores de Macapá (LC 122/2018) e regime estatutário =====
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'Segundo o regime estatutário, a nomeação é forma de provimento derivado de cargo público.',comentario:'Errado. A nomeação é forma de provimento ORIGINÁRIO. Provimento derivado é o que decorre de vínculo anterior (ex.: promoção, readaptação, reintegração, recondução).'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'A investidura em cargo público efetivo no Município de Macapá depende de prévia aprovação em concurso público de provas ou de provas e títulos.',comentario:'Certo. Exigência do art. 37, II, da CF, reproduzida no Estatuto. Cargos em comissão são exceção (livre nomeação e exoneração).'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'A estabilidade do servidor efetivo de Macapá é adquirida após três anos de efetivo exercício, mediante aprovação em avaliação especial de desempenho realizada por comissão constituída para essa finalidade.',comentario:'Certo. Art. 41 da CF; no Município de Macapá (LC 122/2018) a avaliação especial é feita por comissão de 5 (cinco) membros.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'Estabilidade e efetividade são expressões sinônimas no regime estatutário.',comentario:'Errado. Efetividade é atributo do provimento/cargo (decorre do concurso); estabilidade é a garantia de permanência adquirida após o estágio probatório.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'As responsabilidades civil, penal e administrativa do servidor são, em regra, independentes entre si.',comentario:'Certo. As instâncias são independentes; a responsabilização em uma não impede a das demais, salvo a absolvição penal que negue o fato ou a autoria.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'A absolvição do servidor na esfera penal afasta, em qualquer hipótese, a responsabilidade administrativa.',comentario:'Errado. Só afasta quando a decisão penal negar a existência do fato ou a autoria. Absolvição por falta de provas não repercute na esfera administrativa.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'Demissão e exoneração possuem a mesma natureza jurídica, ambas com caráter punitivo.',comentario:'Errado. A demissão é penalidade disciplinar (caráter punitivo). A exoneração NÃO tem caráter de punição (ex.: a pedido ou de cargo em comissão).'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'São exemplos de penalidades disciplinares aplicáveis ao servidor a advertência, a suspensão e a demissão.',comentario:'Certo. O rol típico inclui ainda cassação de aposentadoria e destituição de cargo em comissão.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'É vedada a acumulação remunerada de cargos públicos, ressalvadas as hipóteses previstas na Constituição.',comentario:'Certo. Art. 37, XVI, CF (ex.: dois cargos de professor; um de professor e outro técnico/científico; dois na área de saúde com profissões regulamentadas), havendo compatibilidade de horários.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'O servidor estável só perderá o cargo por sentença judicial transitada em julgado, mediante processo administrativo com ampla defesa ou por procedimento de avaliação periódica de desempenho.',comentario:'Certo. Art. 41, §1º, da CF.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'Reintegração é o retorno do servidor estável ao cargo anteriormente ocupado quando invalidada a sua demissão, com ressarcimento dos prejuízos.',comentario:'Certo. Decorre da anulação da demissão; o eventual ocupante da vaga é reconduzido ou aproveitado.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'O estágio probatório do servidor nomeado para cargo efetivo tem duração de seis meses.',comentario:'Errado. O estágio probatório é de 3 anos, em harmonia com o prazo de aquisição da estabilidade (art. 41 da CF).'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'A posse em cargo público poderá dar-se mediante procuração específica.',comentario:'Certo. É hipótese admitida no regime estatutário quando o nomeado não puder comparecer pessoalmente.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'Constitui forma de vacância de cargo público a posse em outro cargo de acumulação proibida.',comentario:'Certo. São formas de vacância, entre outras: exoneração, demissão, aposentadoria, posse em cargo inacumulável e falecimento.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'É permitido vincular ou equiparar quaisquer espécies remuneratórias para o efeito de remuneração de pessoal do serviço público.',comentario:'Errado. Vedado pelo art. 37, XIII, da CF.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'O processo administrativo disciplinar deve assegurar ao servidor o contraditório e a ampla defesa.',comentario:'Certo. Art. 5º, LV, da CF. A inobservância acarreta nulidade da punição.'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'O servidor responde civilmente pelos danos que causar a terceiros, cabendo à Administração o direito de regresso nos casos de dolo ou culpa.',comentario:'Certo. Responsabilidade do Estado é objetiva perante o terceiro; contra o servidor, exige-se dolo ou culpa (art. 37, §6º, CF).'},
- {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'O vencimento do cargo público é fixado em lei, sendo irredutível.',comentario:'Certo. A irredutibilidade de vencimentos é garantia constitucional (art. 37, XV), ressalvadas as exceções previstas na própria CF.'},
- // ===== Legislação municipal: LOM, PROGEM, CTM =====
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'Segundo o regime estatutário, a nomeação é forma de provimento derivado de cargo público.',comentario:'Errado. A nomeação é forma de provimento ORIGINÁRIO. Provimento derivado decorre de vínculo anterior (promoção, readaptação, reintegração, recondução).'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'A investidura em cargo público efetivo no Município de Macapá depende de prévia aprovação em concurso público de provas ou de provas e títulos.',comentario:'Certo. Art. 37, II, da CF. Cargos em comissão são exceção (livre nomeação e exoneração).'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'A estabilidade do servidor efetivo de Macapá é adquirida após três anos de efetivo exercício, mediante avaliação especial de desempenho por comissão constituída para essa finalidade.',comentario:'Certo. Art. 41 da CF; em Macapá (LC 122/2018) a avaliação é feita por comissão de 5 membros.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'Estabilidade e efetividade são expressões sinônimas no regime estatutário.',comentario:'Errado. Efetividade é atributo do provimento/cargo; estabilidade é a garantia adquirida após o estágio probatório.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'As responsabilidades civil, penal e administrativa do servidor são, em regra, independentes entre si.',comentario:'Certo. A responsabilização em uma instância não impede as demais, salvo a absolvição penal que negue o fato ou a autoria.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'A absolvição do servidor na esfera penal afasta, em qualquer hipótese, a responsabilidade administrativa.',comentario:'Errado. Só afasta quando a decisão penal negar a existência do fato ou a autoria.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'Demissão e exoneração possuem a mesma natureza jurídica, ambas com caráter punitivo.',comentario:'Errado. A demissão é penalidade disciplinar. A exoneração NÃO tem caráter punitivo.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'São exemplos de penalidades disciplinares a advertência, a suspensão e a demissão.',comentario:'Certo. Inclui ainda cassação de aposentadoria e destituição de cargo em comissão.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'É vedada a acumulação remunerada de cargos públicos, ressalvadas as hipóteses previstas na Constituição.',comentario:'Certo. Art. 37, XVI, CF, havendo compatibilidade de horários.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'O servidor estável só perderá o cargo por sentença judicial transitada em julgado, processo administrativo com ampla defesa ou avaliação periódica de desempenho.',comentario:'Certo. Art. 41, §1º, da CF.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'O estágio probatório do servidor nomeado para cargo efetivo tem duração de seis meses.',comentario:'Errado. O estágio probatório é de 3 anos (art. 41 da CF).'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'Reintegração é o retorno do servidor estável ao cargo de que foi demitido, quando invalidada a demissão, com ressarcimento dos prejuízos.',comentario:'Certo. Decorre da anulação da demissão.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'E',enunciado:'É permitido vincular ou equiparar quaisquer espécies remuneratórias para efeito de remuneração de pessoal.',comentario:'Errado. Vedado pelo art. 37, XIII, da CF.'},
+ {assunto:'Servidor Público / Estatuto (Macapá)',gabarito:'C',enunciado:'O processo administrativo disciplinar deve assegurar o contraditório e a ampla defesa.',comentario:'Certo. Art. 5º, LV, da CF. A inobservância acarreta nulidade.'},
+ {assunto:'Direito Tributário',gabarito:'E',enunciado:'O ITBI municipal incide sobre a transmissão de bens imóveis causa mortis.',comentario:'Errado. O ITBI incide sobre transmissão ONEROSA inter vivos. A transmissão causa mortis é tributada pelo ITCMD (estadual).'},
  {assunto:'Legislação Municipal de Macapá',gabarito:'C',enunciado:'A Lei Orgânica é a norma de maior hierarquia no âmbito do Município, devendo as demais leis municipais conformar-se a ela.',comentario:'Certo. A Lei Orgânica funciona como a "Constituição" do Município (art. 29 da CF).'},
- {assunto:'Legislação Municipal de Macapá',gabarito:'C',enunciado:'A Procuradoria-Geral do Município de Macapá (PROGEM) representa o Município judicial e extrajudicialmente e exerce a consultoria jurídica do Poder Executivo.',comentario:'Certo. Prevista no art. 232 da Lei Orgânica e organizada pela LC 136/2020.'},
- {assunto:'Legislação Municipal de Macapá',gabarito:'E',enunciado:'É compatível com a Constituição atribuir a ocupantes exclusivamente de cargos em comissão as funções de representação judicial e consultoria jurídica do Município.',comentario:'Errado. A advocacia pública deve ser exercida por procuradores de carreira (efetivos). O MPF apontou a inconstitucionalidade de dispositivos da LC 136/2020 de Macapá nesse ponto.'},
- {assunto:'Direito Tributário',gabarito:'E',enunciado:'Conforme o sistema tributário, o ITBI municipal incide sobre a transmissão de bens imóveis causa mortis.',comentario:'Errado. O ITBI incide sobre transmissão ONEROSA inter vivos. A transmissão causa mortis (e a doação) é tributada pelo ITCMD, de competência estadual.'},
- {assunto:'Direito Tributário',gabarito:'C',enunciado:'De acordo com o Código Tributário do Município de Macapá, o ISS é tributo de competência municipal incidente sobre a prestação de serviços.',comentario:'Certo. O ISS (ISSQN) é municipal, com normas gerais na LC 116/2003, e está disciplinado no Código Tributário de Macapá (LC 144/2021).'},
 ];
 const EDITAL_TRT8=[
  ['Língua Portuguesa',[['Interpretação de texto',1],['Concordância e regência; crase',0],['Pontuação; redação oficial',0]]],
@@ -808,10 +680,10 @@ const PRESETS={
  macapa:{ nome:'Procurador — PGM Macapá', edital:EDITAL_MACAPA, flashcards:FLASHCARDS_MACAPA, questoes:QUESTOES_MACAPA,
    materias:[{nome:'Direito Administrativo',peso:5},{nome:'Direito Constitucional',peso:5},{nome:'Direito Tributário',peso:5},{nome:'Direito Processual Civil',peso:4},{nome:'Legislação Municipal de Macapá',peso:4},{nome:'Direito Financeiro',peso:3},{nome:'Direito Civil',peso:3},{nome:'Língua Portuguesa',peso:3},{nome:'Direito Urbanístico',peso:2},{nome:'Direito Ambiental',peso:2},{nome:'Direito do Trabalho e Processual',peso:2},{nome:'Direito Previdenciário',peso:2}],
    leis:[
-     {titulo:'Lei Orgânica do Município de Macapá', texto:`LEI ORGÂNICA DO MUNICÍPIO DE MACAPÁ\n(Resumo. Leia/baixe a íntegra oficial nos links abaixo.)\n\n📎 Íntegra (PDF da Câmara): https://www.macapa.ap.leg.br/leis/lei-organica-municipal/Lei%20Organica%20Municipal.pdf/at_download/file\n📎 Página: https://www.macapa.ap.leg.br/leis/lei-organica-municipal\n\n• É a "Constituição do Município": norma de maior hierarquia local; as demais leis municipais devem se conformar a ela.\n• Dispõe sobre organização do Município, competências, Poderes (Executivo e Legislativo), servidores, tributos municipais e ordem urbana.\n• Art. 232: institui a PROCURADORIA-GERAL DO MUNICÍPIO (PROGEM), responsável pela representação judicial e extrajudicial do Município e pela consultoria jurídica do Poder Executivo.`},
-     {titulo:'LC 136/2020 — Organização da PROGEM', texto:`LEI COMPLEMENTAR Nº 136/2020 — ORGANIZAÇÃO DA PROCURADORIA-GERAL DO MUNICÍPIO (PROGEM)\n(Resumo. Confira a íntegra no link.)\n\n📎 PROGEM (Prefeitura): https://macapa.ap.gov.br/unidade-administrativa/progem/\n\n• Organiza a PROGEM: estrutura, competências e a carreira de Procurador do Município.\n• A PROGEM representa o Município judicial e extrajudicialmente e exerce a consultoria/assessoria jurídica do Sistema Jurídico Municipal vinculado ao Poder Executivo.\n• ATENÇÃO (tema quente): o MPF opinou pela INCONSTITUCIONALIDADE de dispositivos que atribuíam a servidores comissionados funções típicas de advocacia pública. A advocacia pública deve ser exercida por procuradores efetivos (de carreira).`},
-     {titulo:'LC 122/2018 — Estatuto dos Servidores de Macapá', texto:`LEI COMPLEMENTAR Nº 122/2018 — ESTATUTO DOS SERVIDORES PÚBLICOS DO MUNICÍPIO DE MACAPÁ\n(Resumo dos pontos mais cobrados. Leia/baixe a íntegra oficial no link abaixo.)\n\n📎 Íntegra oficial: https://leismunicipais.com.br/legislacao-municipal/190/leis-de-macapa/categorias/servidor-publico\n\n• REGIME: estatutário; aplica-se aos servidores do Município, autarquias e fundações.\n• PROVIMENTO: a nomeação é a forma de provimento originário, precedida de aprovação em concurso público para cargo efetivo.\n• POSSE E EXERCÍCIO: a posse formaliza a investidura no cargo; o exercício é o efetivo desempenho das atribuições (confira os prazos na íntegra).\n• ESTÁGIO PROBATÓRIO: avaliação do servidor nomeado para cargo efetivo, por 3 anos (art. 41 da CF).\n• ESTABILIDADE: adquirida após 3 anos de efetivo exercício e aprovação em avaliação especial de desempenho, realizada por comissão de 5 (cinco) membros.\n• VACÂNCIA: exoneração, demissão, aposentadoria, posse em outro cargo inacumulável, falecimento, entre outras.\n• DEVERES E PROIBIÇÕES: o servidor sujeita-se aos deveres funcionais e às vedações; a acumulação remunerada de cargos é proibida, salvo as exceções da Constituição.\n• RESPONSABILIDADES: civil, penal e administrativa, independentes entre si.\n• PENALIDADES: advertência, suspensão, demissão, cassação de aposentadoria e destituição de cargo em comissão, apuradas em processo administrativo disciplinar (contraditório e ampla defesa).`},
-     {titulo:'LC 144/2021 (+209/2025) — Código Tributário Municipal', texto:`LEI COMPLEMENTAR Nº 144/2021 (alterada pela LC 209/2025) — CÓDIGO TRIBUTÁRIO DO MUNICÍPIO DE MACAPÁ\n(Resumo. Leia/baixe a íntegra no link.)\n\n📎 Íntegra (PDF): https://macapa.ap.gov.br/portal/wp-content/uploads/2023/03/LEI_COMPLEMENTAR_N_144_2021_PMM_com_alteracoes.pdf\n📎 Leis tributárias: https://macapa.ap.gov.br/leis-tributarias-municipais/\n\n• Institui o sistema tributário do Município, com base na CF, na Constituição do Amapá e na Lei Orgânica.\n• Tributos municipais: ISS (serviços), IPTU (propriedade urbana), ITBI (transmissão onerosa de imóveis), taxas, contribuição de melhoria e COSIP.\n• Disciplina obrigação tributária, lançamento, crédito, dívida ativa e o processo administrativo tributário municipal.\n• Atualizada pela LC 209/2025.`}
+     {titulo:'Lei Orgânica do Município de Macapá', texto:`LEI ORGÂNICA DO MUNICÍPIO DE MACAPÁ\n(Resumo. Leia/baixe a íntegra oficial nos links abaixo.)\n\n📎 Íntegra (PDF da Câmara): https://www.macapa.ap.leg.br/leis/lei-organica-municipal/Lei%20Organica%20Municipal.pdf/at_download/file\n📎 Página: https://www.macapa.ap.leg.br/leis/lei-organica-municipal\n\n• É a "Constituição do Município": norma de maior hierarquia local.\n• Dispõe sobre organização, competências, Poderes, servidores, tributos municipais e ordem urbana.\n• Art. 232: institui a PROGEM (Procuradoria-Geral do Município), responsável pela representação judicial/extrajudicial do Município e pela consultoria jurídica do Executivo.`},
+     {titulo:'LC 136/2020 — Organização da PROGEM', texto:`LEI COMPLEMENTAR Nº 136/2020 — ORGANIZAÇÃO DA PROGEM\n(Resumo. Confira a íntegra no link.)\n\n📎 PROGEM: https://macapa.ap.gov.br/unidade-administrativa/progem/\n\n• Organiza a PROGEM: estrutura, competências e a carreira de Procurador do Município.\n• Representa o Município e exerce a consultoria jurídica do Sistema Jurídico Municipal.\n• ATENÇÃO: o MPF opinou pela INCONSTITUCIONALIDADE de dispositivos que atribuíam a comissionados funções típicas de advocacia pública (que deve ser de procuradores efetivos).`},
+     {titulo:'LC 122/2018 — Estatuto dos Servidores de Macapá', texto:`LEI COMPLEMENTAR Nº 122/2018 — ESTATUTO DOS SERVIDORES DO MUNICÍPIO DE MACAPÁ\n(Resumo dos pontos mais cobrados. Leia/baixe a íntegra no link.)\n\n📎 Íntegra: https://leismunicipais.com.br/legislacao-municipal/190/leis-de-macapa/categorias/servidor-publico\n\n• REGIME: estatutário (Município, autarquias e fundações).\n• PROVIMENTO: nomeação = provimento originário, precedida de concurso para cargo efetivo.\n• ESTÁGIO PROBATÓRIO: 3 anos (art. 41 CF).\n• ESTABILIDADE: após 3 anos + avaliação especial de desempenho por comissão de 5 membros.\n• VACÂNCIA: exoneração, demissão, aposentadoria, posse em cargo inacumulável, falecimento.\n• RESPONSABILIDADES: civil, penal e administrativa, independentes.\n• PENALIDADES: advertência, suspensão, demissão, cassação de aposentadoria, destituição de comissão (com contraditório e ampla defesa).`},
+     {titulo:'LC 144/2021 (+209/2025) — Código Tributário Municipal', texto:`LEI COMPLEMENTAR Nº 144/2021 (alt. LC 209/2025) — CÓDIGO TRIBUTÁRIO DE MACAPÁ\n(Resumo. Leia/baixe a íntegra no link.)\n\n📎 Íntegra (PDF): https://macapa.ap.gov.br/portal/wp-content/uploads/2023/03/LEI_COMPLEMENTAR_N_144_2021_PMM_com_alteracoes.pdf\n📎 Leis tributárias: https://macapa.ap.gov.br/leis-tributarias-municipais/\n\n• Institui o sistema tributário do Município.\n• Tributos: ISS (serviços), IPTU (propriedade urbana), ITBI (transmissão onerosa de imóveis), taxas, contribuição de melhoria e COSIP.\n• Disciplina obrigação, lançamento, crédito, dívida ativa e processo administrativo tributário.`}
    ] },
  trt8:{ nome:'Analista Judiciário — TRT-8 (PA/AP)', edital:EDITAL_TRT8,
    materias:[{nome:'Direito do Trabalho',peso:5},{nome:'Direito Processual do Trabalho',peso:5},{nome:'Direito Constitucional',peso:4},{nome:'Direito Administrativo',peso:4},{nome:'Língua Portuguesa',peso:3},{nome:'Raciocínio Lógico-Matemático',peso:3},{nome:'Direito Civil',peso:3},{nome:'Direito Processual Civil',peso:3},{nome:'Legislação do Judiciário',peso:3},{nome:'Noções de Informática',peso:2},{nome:'Direito Previdenciário',peso:2}],
@@ -821,74 +693,37 @@ const PRESETS={
    leis:[{titulo:'Constituição do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Regime Jurídico dos Servidores do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Legislação Tributária Estadual do Amapá (ICMS)',fonte:'https://sefaz.portal.ap.gov.br/'}] },
 };
 async function aplicarPreset(concursoId,P){
-  // ciclo: não sobrescreve se já houver matérias (preserva ajustes do usuário)
   const ciclo=await db.ciclo.where('concursoId').equals(concursoId).first();
   if(!ciclo) await db.ciclo.add({concursoId,materias:P.materias,horasDia:3,blocos:[]});
   else if(!(ciclo.materias&&ciclo.materias.length)) await db.ciclo.update(ciclo.id,{materias:P.materias});
-  // leis: adiciona as que faltam; atualiza placeholders antigos para o resumo novo
-  for(const l of (P.leis||[])){
-    const txt = l.texto || `⚠️ Cole aqui o texto oficial desta lei (artigo por artigo).\nFonte: ${l.fonte||''}`;
-    const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first();
-    if(!ja) await db.leis.add({concursoId,titulo:l.titulo,texto:txt,criado:todayISO()});
-    else if((ja.texto||'').startsWith('⚠️')) await db.leis.update(ja.id,{texto:txt});
-  }
-  // edital: completa tópicos faltantes
+  for(const l of (P.leis||[])){const txt=l.texto||`⚠️ Cole aqui o texto oficial desta lei.\nFonte: ${l.fonte||''}`;const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first();if(!ja)await db.leis.add({concursoId,titulo:l.titulo,texto:txt,criado:todayISO()});else if((ja.texto||'').startsWith('⚠️'))await db.leis.update(ja.id,{texto:txt});}
   await seedEdital(concursoId,P.edital);
-  // flashcards: semeia só se ainda não houver nenhum
-  if((P.flashcards||[]).length && (await db.flashcards.where('concursoId').equals(concursoId).count())===0){
-    for(const [frente,verso,assunto] of P.flashcards) await db.flashcards.add({concursoId,frente,verso,assunto,due:todayISO(),intervalo:0,ef:2.5,reps:0,criado:todayISO()});
-  }
-  // questões: adiciona as que ainda não existem (dedup por enunciado — pega conteúdo novo)
-  if((P.questoes||[]).length){
-    const existentes=new Set((await db.questoes.where('concursoId').equals(concursoId).toArray()).map(q=>q.enunciado));
-    for(const q of P.questoes){ if(existentes.has(q.enunciado)) continue; await db.questoes.add({concursoId,assunto:q.assunto,banca:'CEBRASPE (Certo/Errado)',enunciado:q.enunciado,tipo:'ce',alternativas:null,gabarito:q.gabarito,comentario:q.comentario,criado:todayISO()}); }
-  }
+  if((P.flashcards||[]).length&&(await db.flashcards.where('concursoId').equals(concursoId).count())===0){for(const[f,v,a]of P.flashcards)await db.flashcards.add({concursoId,frente:f,verso:v,assunto:a,due:todayISO(),intervalo:0,ef:2.5,reps:0,criado:todayISO()});}
+  if((P.questoes||[]).length){const ex=new Set((await db.questoes.where('concursoId').equals(concursoId).toArray()).map(q=>q.enunciado));for(const q of P.questoes){if(ex.has(q.enunciado))continue;await db.questoes.add({concursoId,assunto:q.assunto,banca:'CEBRASPE (Certo/Errado)',enunciado:q.enunciado,tipo:'ce',alternativas:null,gabarito:q.gabarito,comentario:q.comentario,criado:todayISO()});}}
 }
-async function carregarPreset(key){
-  const P=PRESETS[key]; if(!P) return;
-  const existe=await db.concursos.where('nome').equals(P.nome).first();
-  if(existe && !confirm(`"${P.nome}" já existe. Carregar de novo pode duplicar dados. Continuar?`)) return;
-  const concursoId=existe?existe.id:await db.concursos.add({nome:P.nome,criado:todayISO()});
-  estado.concursoId=concursoId;
-  await aplicarPreset(concursoId,P);
-  await carregarConcursos(); toast(`"${P.nome}" carregado!`,'ok'); renderTudo(); showView('edital');
-}
-$$('.preset-btn').forEach(b=>b.addEventListener('click', ()=>carregarPreset(b.dataset.preset)));
+async function carregarPreset(key){const P=PRESETS[key];if(!P)return;const ex=await db.concursos.where('nome').equals(P.nome).first();if(ex&&!confirm(`"${P.nome}" já existe. Continuar?`))return;const id=ex?ex.id:await db.concursos.add({nome:P.nome,criado:todayISO()});estado.concursoId=id;await aplicarPreset(id,P);await carregarConcursos();toast(`"${P.nome}" carregado!`,'ok');renderTudo();showView('edital');}
+$$('.preset-btn').forEach(b=>b.addEventListener('click',()=>carregarPreset(b.dataset.preset)));
 
-/* =====================================================================
-   BACKUP
-   ===================================================================== */
-const TABELAS=['concursos','questoes','respostas','flashcards','sessoes','leis','ciclo','simulados','redacoes','editalTopicos'];
-$('#export-json').addEventListener('click', async ()=>{ const dump={}; for(const t of TABELAS) dump[t]=await db[t].toArray(); const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`controle-estudos-${todayISO()}.json`; a.click(); });
-$('#import-json').addEventListener('change', async e=>{ const f=e.target.files[0]; if(!f) return; const dump=JSON.parse(await f.text()); for(const t of TABELAS){ if(dump[t]){ await db[t].clear(); await db[t].bulkAdd(dump[t]); } } toast('Backup importado!','ok'); location.reload(); });
-$('#reset-all').addEventListener('click', async ()=>{ if(!confirm('Apagar TODOS os dados? Não dá pra desfazer.')) return; await db.delete(); location.reload(); });
+/* =================== BACKUP =================== */
+const TABS=['concursos','questoes','respostas','flashcards','sessoes','leis','ciclo','simulados','redacoes','editalTopicos'];
+$('#export-json').addEventListener('click',async()=>{const d={};for(const t of TABS)d[t]=await db[t].toArray();const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`rumo-pgm-${todayISO()}.json`;a.click();});
+$('#import-json').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const d=JSON.parse(await f.text());for(const t of TABS){if(d[t]){await db[t].clear();await db[t].bulkAdd(d[t]);}}toast('Backup importado!','ok');location.reload();});
+$('#reset-all').addEventListener('click',async()=>{if(!confirm('Apagar TODOS os dados?'))return;await db.delete();location.reload();});
 
-/* =====================================================================
-   BOOT
-   ===================================================================== */
-function renderTudo(){ renderHoje(); renderDashboard(); renderCards(); iniciarRevisao(); }
+/* =================== BOOT =================== */
+function renderTudo(){renderHoje();}
 async function init(){
-  await carregarConcursos(); // garante ao menos um concurso
-  let c = await db.concursos.get(estado.concursoId);
-  const totalTopicos = await db.editalTopicos.count();
-  if(totalTopicos===0){
-    // Primeira vez: já deixa o Procurador PGM Macapá pronto (edital + flashcards + questões).
-    if(c && (c.nome==='Meu concurso' || !c.nome)){ await db.concursos.update(c.id,{nome:PRESETS.macapa.nome}); c.nome=PRESETS.macapa.nome; }
-    await aplicarPreset(estado.concursoId, PRESETS.macapa);
-    await carregarConcursos();
-  } else {
-    // Já tinha o app: completa com conteúdo novo (flashcards/questões/tópicos) se for um concurso conhecido.
-    const P = Object.values(PRESETS).find(p=>p.nome===c?.nome);
-    if(P) await aplicarPreset(estado.concursoId, P);
-  }
-  renderTudo();
+  applyTheme();
+  await carregarConcursos();
+  const c=await db.concursos.get(estado.concursoId);
+  if((await db.editalTopicos.count())===0){
+    if(c&&(c.nome==='Meu concurso'||!c.nome)){await db.concursos.update(c.id,{nome:PRESETS.macapa.nome});}
+    await aplicarPreset(estado.concursoId,PRESETS.macapa);await carregarConcursos();
+  } else { const P=Object.values(PRESETS).find(p=>p.nome===c?.nome); if(P) await aplicarPreset(estado.concursoId,P); }
+  renderHoje();
 }
 init();
-
-// PWA: registra service worker (só funciona via http/https — em file:// é ignorado)
-if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>
 </body>
 </html>

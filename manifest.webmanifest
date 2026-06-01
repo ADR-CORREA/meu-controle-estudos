@@ -1,7 +1,7 @@
 {
-  "name": "Meu Controle de Estudos",
-  "short_name": "Estudos",
-  "description": "Controle de estudos para concurso — missão do dia, registro, revisão espaçada.",
+  "name": "Rumo à PGM",
+  "short_name": "Rumo à PGM",
+  "description": "Controle de estudos para concurso — edital, questões, revisão espaçada e desempenho.",
   "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",
