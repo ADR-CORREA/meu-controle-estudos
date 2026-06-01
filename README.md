@@ -23,12 +23,23 @@ App de **uma página (1 HTML)** para **controlar** sua preparação para concurs
 ## Estrutura
 
 ```
-index.html   → o app inteiro (controle de estudos, sem IA)
-README.md    → este arquivo
+index.html             → o app inteiro (controle de estudos, sem IA)
+manifest.webmanifest   → PWA (nome, ícones, cores)
+sw.js                  → service worker (funciona offline)
+icon-192/512.png       → ícones do app
+apple-touch-icon.png   → ícone iOS
+README.md              → este arquivo
 ```
 
-> Materiais de apoio gerados nesta pasta: `edital-verticalizado-pgm-macapa.md/.pdf`, `cruzamento-editais-amapa.xlsx`, `plano-estudos-3h-amapa.xlsx`.
-> `worker.js` (proxy de IA) **não é mais usado** — pode ser ignorado/removido.
+> Materiais de apoio: `edital-verticalizado-pgm-macapa.md/.pdf`, `cruzamento-editais-amapa.xlsx`, `plano-estudos-3h-amapa.xlsx`.
+
+## PWA (instalar como app no celular)
+
+O app é um **PWA**: dá para instalar na tela inicial e usar offline. **Mas isso só funciona quando ele é servido por http/https** (hospedado), não abrindo o arquivo direto (`file://`).
+
+- **Hospedado (GitHub Pages / Cloudflare Pages):** abra o link no Chrome do celular → menu → "Adicionar à tela inicial". Vira um app com ícone, abre offline.
+- **Teste no PC:** rode um servidor local (ex.: `python -m http.server` na pasta) e acesse `http://localhost:8000`.
+- Aberto por `file://` o app funciona normalmente, mas **sem** instalação/offline (o service worker é ignorado).
 
 ## Observações
 
