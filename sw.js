@@ -1,5 +1,5 @@
 /* Service Worker — Meu Controle de Estudos (offline) */
-const CACHE = 'rumo-pgm-v8';
+const CACHE = 'rumo-pgm-v9';
 const CORE = [
   './',
   './index.html',
