@@ -8,7 +8,8 @@ App de **uma página (1 HTML)** para **controlar** sua preparação para concurs
 - **📊 Painel** — KPIs, ofensiva (streak), % de acerto, desempenho por matéria e os **últimos 7 dias**.
 - **📋 Edital Verticalizado** — disciplinas e tópicos em árvore, com checkbox de "dominado" e barra de progresso. 🔴 = alta incidência.
 - **🗓️ Cronograma** — matérias com peso → gera o ciclo de estudos; inclui **Pomodoro**.
-- **🃏 Flashcards** — criação manual + **revisão espaçada (SM-2)**: o app diz o que revisar hoje.
+- **❓ Questões** — banco de **questões comentadas** (Certo/Errado) já incluído para PGM Macapá; resolva e os acertos entram no Painel.
+- **🃏 Flashcards** — banco de flashcards já incluído para PGM Macapá + criação manual, com **revisão espaçada (SM-2)**.
 - **📜 Leis** — cole uma lei e leia por artigo (consulta rápida da legislação do seu concurso).
 - **🧪 Simulados** — **registro manual** dos simulados feitos (data, foco, acertos, %), com histórico.
 - **⚙️ Configurações** — concursos prontos do Amapá (PGM Macapá, TRT-8, Gestão Gov. AP) que já carregam edital + ciclo + leis; **backup** (export/import JSON).

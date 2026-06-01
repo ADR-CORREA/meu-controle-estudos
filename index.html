@@ -47,6 +47,7 @@
       <button data-view="dashboard"  class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📊 <span>Painel</span></button>
       <button data-view="edital"     class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📋 <span>Edital</span></button>
       <button data-view="cronograma" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🗓️ <span>Cronograma</span></button>
+      <button data-view="questoes"   class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">❓ <span>Questões</span></button>
       <button data-view="flashcards" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🃏 <span>Flashcards</span></button>
       <button data-view="leis"       class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📜 <span>Leis</span></button>
       <button data-view="simulados"  class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🧪 <span>Simulados</span></button>
@@ -227,6 +228,17 @@
         <div id="ciclo-blocos" class="space-y-2"><p class="text-slate-500 text-sm">Cadastre matérias e clique em <b>Gerar ciclo</b>.</p></div>
       </section>
 
+      <!-- ============ QUESTÕES ============ -->
+      <section id="view-questoes" class="view">
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <h1 class="text-2xl font-bold">❓ Questões <span class="text-sm font-normal text-slate-400">(comentadas)</span></h1>
+          <select id="q-filtro" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm"></select>
+        </div>
+        <p class="text-slate-400 text-sm mb-4">Resolva e veja o gabarito comentado. Seus acertos entram no Painel.</p>
+        <div id="questoes-list" class="space-y-4"></div>
+        <div id="questoes-empty" class="text-center text-slate-500 py-16"><div class="text-5xl mb-3">📝</div><p>Nenhuma questão para este concurso.</p><p class="text-sm mt-1">Carregue o concurso PGM Macapá em ⚙️ Configurações.</p></div>
+      </section>
+
       <!-- ============ FLASHCARDS ============ -->
       <section id="view-flashcards" class="view">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -363,6 +375,7 @@ function showView(name){
   if(name==='dashboard') renderDashboard();
   if(name==='edital') renderEdital();
   if(name==='cronograma') renderCiclo();
+  if(name==='questoes') renderQuestoes();
   if(name==='flashcards') iniciarRevisao();
   if(name==='leis') renderLeis();
   if(name==='simulados') renderSimHistorico();
@@ -625,21 +638,118 @@ async function renderSimHistorico(){
 }
 
 /* =====================================================================
-   PRESETS (edital + ciclo + leis) — concursos do Amapá
+   QUESTÕES (banco autoral, comentado — sem IA)
+   ===================================================================== */
+async function renderQuestoes(){
+  const todas=await db.questoes.where('concursoId').equals(estado.concursoId).toArray();
+  $('#questoes-empty').classList.toggle('hidden',todas.length>0);
+  const assuntos=[...new Set(todas.map(q=>q.assunto))].sort();
+  const fSel=$('#q-filtro'); const atual=fSel.value||'todos';
+  fSel.innerHTML=`<option value="todos">Todos (${todas.length})</option>`+assuntos.map(a=>`<option value="${a}" ${a===atual?'selected':''}>${a}</option>`).join('');
+  const filtro=fSel.value;
+  const lista=filtro==='todos'?todas:todas.filter(q=>q.assunto===filtro);
+  const cont=$('#questoes-list'); cont.innerHTML='';
+  for(const q of lista){
+    const card=document.createElement('div'); card.className='bg-slate-800/40 rounded-xl p-4 border border-slate-800';
+    const isCE=q.tipo==='ce';
+    const opts=isCE
+      ? `<div class="flex gap-2 mt-3"><button class="resp px-4 py-2 rounded-lg bg-slate-800 hover:bg-emerald-700 border border-slate-700 text-sm" data-r="C">Certo</button><button class="resp px-4 py-2 rounded-lg bg-slate-800 hover:bg-red-700 border border-slate-700 text-sm" data-r="E">Errado</button></div>`
+      : `<div class="space-y-1 mt-3">${(q.alternativas||[]).map(a=>{const L=a.trim().charAt(0).toUpperCase();return `<button class="resp w-full text-left px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm" data-r="${L}">${a}</button>`;}).join('')}</div>`;
+    card.innerHTML=`<div class="flex justify-between items-start gap-2"><span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300">${q.assunto}</span></div><p class="mt-2 text-sm leading-relaxed">${q.enunciado}</p>${opts}<div class="feedback hidden mt-3 text-sm rounded-lg p-3"></div>`;
+    card.querySelectorAll('.resp').forEach(btn=>btn.addEventListener('click',async ()=>{
+      const r=btn.dataset.r, acertou=r===q.gabarito;
+      await db.respostas.add({questaoId:q.id,data:todayISO(),acertou:acertou?1:0,assunto:q.assunto});
+      await registrarSessao();
+      const fb=card.querySelector('.feedback'); fb.classList.remove('hidden');
+      fb.className=`feedback mt-3 text-sm rounded-lg p-3 border ${acertou?'bg-emerald-900/30 border-emerald-800 text-emerald-200':'bg-red-900/30 border-red-800 text-red-200'}`;
+      fb.innerHTML=`<b>${acertou?'✅ Acertou!':'❌ Errou.'}</b> Gabarito: <b>${q.gabarito}</b><br><span class="text-slate-300">${q.comentario||''}</span>`;
+      card.querySelectorAll('.resp').forEach(b=>b.disabled=true);
+    }));
+    cont.appendChild(card);
+  }
+}
+$('#q-filtro').addEventListener('change', ()=>renderQuestoes());
+
+/* =====================================================================
+   PRESETS (edital + ciclo + leis + flashcards + questões) — Amapá
    ===================================================================== */
 const EDITAL_MACAPA=[
- ['Direito Constitucional',[['Constitucionalismo, poder constituinte, eficácia das normas',0],['Direitos e garantias fundamentais (art. 5º)',1],['Remédios constitucionais (HC, MS, MI, HD, ação popular)',0],['Federação e competências do Município (arts. 29-31)',1],['Administração Pública na CF (arts. 37 a 41)',1],['Organização dos Poderes; processo legislativo municipal',0],['Controle de constitucionalidade (ADI, ADC, ADPF)',1],['Ordem social, econômica e financeira; tributação na CF',0]]],
- ['Direito Administrativo',[['Regime jurídico-administrativo; princípios (LIMPE)',1],['Organização administrativa; administração direta e indireta',0],['Poderes da Administração; poder de polícia',0],['Atos administrativos: invalidação, revogação, convalidação',1],['Licitações e contratos — Lei 14.133/2021',1],['Serviços públicos; concessões e PPP',0],['Agentes públicos; servidor: provimento, estabilidade',1],['Bens públicos; desapropriação',1],['Responsabilidade civil do Estado (art. 37, §6º)',1],['Controle da Administração; Tribunais de Contas',0],['Improbidade administrativa (Lei 8.429/92 c/ 14.230/21)',1],['Processo administrativo (Lei 9.784/99); LAI; LGPD',0]]],
- ['Direito Tributário',[['Sistema Tributário Nacional; limitações ao poder de tributar',1],['Princípios tributários',0],['Tributos municipais (ISS, IPTU, ITBI, COSIP)',1],['Obrigação tributária; responsabilidade tributária',1],['Crédito tributário (prescrição/decadência)',1],['Garantias e privilégios do crédito',0],['Dívida ativa; CDA e execução fiscal (Lei 6.830/80)',1],['Código Tributário de Macapá (LC 144/2021 + 209/2025)',1]]],
- ['Direito Processual Civil',[['Normas fundamentais; jurisdição e competência',0],['Fazenda Pública em juízo: prazos e prerrogativas',1],['Tutela provisória',0],['Petição inicial, contestação, peças de defesa',0],['Sentença; coisa julgada; remessa necessária',1],['Recursos',0],['Execução contra a Fazenda; precatórios',1],['Execução fiscal e embargos',1],['Ações constitucionais; precedentes',0]]],
- ['Direito Financeiro',[['Orçamento público; PPA, LDO, LOA',0],['Receita e despesa pública',0],['Lei de Responsabilidade Fiscal (LC 101/2000)',1],['Precatórios e RPV (art. 100 CF)',1],['Fiscalização e controle (Lei 4.320/64)',0]]],
- ['Direito Civil',[['LINDB; pessoas e bens',0],['Negócio jurídico; prescrição e decadência',0],['Obrigações; responsabilidade civil',1],['Contratos',0],['Direitos reais (propriedade, posse)',0]]],
- ['Direito Urbanístico',[['Estatuto da Cidade (10.257/2001); função social',1],['Instrumentos: IPTU progressivo, usucapião urbana',0],['Plano Diretor de Macapá; parcelamento do solo',0]]],
- ['Direito Ambiental',[['Princípios; competências (LC 140/11); licenciamento',0],['PNMA (Lei 6.938/81); responsabilidade ambiental',0]]],
- ['Direito do Trabalho',[['Responsabilidade subsidiária (Súmula 331 TST)',1],['Contratação irregular (Súmula 363 TST)',0]]],
- ['Direito Previdenciário',[['RPPS; EC 103/2019; aposentadoria do servidor',0]]],
- ['Legislação Municipal de Macapá',[['Lei Orgânica do Município de Macapá',1],['LC 136/2020 — Organização da PROGEM',1],['LC 122/2018 — Estatuto dos Servidores',1],['LC 144/2021 + 209/2025 — Código Tributário',1]]],
- ['Língua Portuguesa',[['Interpretação de texto',1],['Concordância e regência; crase',0],['Pontuação; reescrita',0]]],
+ ['Direito Constitucional',[['Constitucionalismo; poder constituinte originário e derivado',0],['Eficácia e aplicabilidade das normas constitucionais',0],['Direitos e garantias fundamentais (art. 5º)',1],['Direitos sociais (art. 6º e 7º)',0],['Remédios constitucionais (HC, MS, MI, HD, ação popular)',0],['Nacionalidade; direitos políticos; partidos',0],['Organização do Estado; federação',0],['Competências da União, Estados e Municípios (arts. 21-24, 30)',1],['Município: organização, Lei Orgânica, autonomia (arts. 29-31)',1],['Administração Pública na CF (arts. 37 a 41)',1],['Servidores públicos na CF; teto remuneratório',1],['Organização dos Poderes; funções essenciais à Justiça',0],['Processo legislativo',0],['Controle de constitucionalidade: difuso e concentrado',1],['ADI, ADC, ADPF, ADO',1],['Ordem econômica e financeira',0],['Ordem social',0]]],
+ ['Direito Administrativo',[['Regime jurídico-administrativo; princípios (LIMPE + razoabilidade, proporcionalidade)',1],['Poderes e deveres do administrador',0],['Organização administrativa: direta e indireta; autarquias, fundações, EP e SEM',0],['Poderes administrativos; poder de polícia (atributos)',1],['Atos administrativos: conceito, elementos e atributos',1],['Atos: classificação, espécies, extinção (anulação, revogação, cassação, convalidação)',1],['Licitações — Lei 14.133/2021: princípios e fases',1],['Lei 14.133/21: modalidades e critérios de julgamento',1],['Lei 14.133/21: contratação direta (dispensa e inexigibilidade)',1],['Contratos administrativos: cláusulas exorbitantes, equilíbrio, sanções',1],['Serviços públicos; concessão, permissão e PPP (Lei 11.079/04)',0],['Agentes públicos: cargo, emprego, função; provimento; estabilidade',1],['Responsabilidade dos servidores; processo administrativo disciplinar',0],['Bens públicos: classificação, afetação, alienação',0],['Intervenção na propriedade; desapropriação (DL 3.365/41)',1],['Responsabilidade civil do Estado (art. 37, §6º): teorias e excludentes',1],['Controle da Administração: interno, externo e judicial; Tribunais de Contas',0],['Improbidade administrativa (Lei 8.429/92 com a Lei 14.230/21)',1],['Processo administrativo (Lei 9.784/99)',0],['LAI (Lei 12.527/11); LGPD na Administração',0]]],
+ ['Direito Tributário',[['Sistema Tributário Nacional; espécies tributárias',1],['Competência tributária; limitações ao poder de tributar',1],['Princípios: legalidade, anterioridade, isonomia, capacidade contributiva, não confisco',1],['Imunidades tributárias',0],['Impostos municipais: ISS (LC 116/03)',1],['Impostos municipais: IPTU e ITBI',1],['Taxas, contribuição de melhoria e COSIP',0],['Obrigação tributária principal e acessória; fato gerador',1],['Sujeição passiva; responsabilidade tributária',1],['Crédito tributário: constituição e lançamento',0],['Suspensão, extinção e exclusão do crédito',1],['Decadência e prescrição tributárias',1],['Garantias e privilégios do crédito tributário',0],['Administração tributária; dívida ativa e CDA',1],['Execução fiscal (Lei 6.830/80) e embargos',1],['Código Tributário do Município de Macapá (LC 144/2021 + LC 209/2025)',1]]],
+ ['Direito Processual Civil',[['Normas fundamentais do processo civil (CPC/2015)',0],['Jurisdição e competência',0],['Sujeitos do processo; litisconsórcio; intervenção de terceiros',0],['Fazenda Pública em juízo: prazos em dobro e prerrogativas',1],['Prazos, preclusão e nulidades',0],['Tutela provisória (urgência e evidência)',1],['Petição inicial e resposta do réu; contestação',1],['Teoria das provas',0],['Sentença e coisa julgada',0],['Remessa necessária (art. 496)',1],['Recursos: apelação, agravo, especial e extraordinário',0],['Cumprimento de sentença contra a Fazenda Pública',1],['Precatórios e RPV no processo (art. 100 CF)',1],['Execução fiscal e embargos à execução',1],['Mandado de segurança; ação civil pública; ação popular',1],['Precedentes; IRDR; reclamação',0]]],
+ ['Direito Financeiro',[['Conceito; receita e despesa pública',0],['Orçamento público; princípios orçamentários',0],['PPA, LDO e LOA',1],['Créditos adicionais',0],['Lei de Responsabilidade Fiscal (LC 101/2000): limites de pessoal e dívida',1],['LRF: transparência, metas e mecanismos de correção',1],['Precatórios e RPV (art. 100 CF)',1],['Fiscalização e controle; Lei 4.320/64',0]]],
+ ['Direito Civil',[['LINDB (Decreto-Lei 4.657/42)',0],['Pessoas naturais e jurídicas; personalidade e capacidade',0],['Domicílio; bens',0],['Fato, ato e negócio jurídico; defeitos e invalidades',1],['Prescrição e decadência',1],['Teoria geral das obrigações',0],['Responsabilidade civil (subjetiva e objetiva)',1],['Contratos em geral; contratos em espécie',0],['Direitos reais: propriedade e posse',0]]],
+ ['Direito Urbanístico',[['Política urbana na CF (arts. 182-183)',0],['Estatuto da Cidade (Lei 10.257/2001); função social da propriedade',1],['Instrumentos: parcelamento/edificação compulsórios; IPTU progressivo no tempo',1],['Usucapião especial urbana',0],['Plano Diretor de Macapá; parcelamento do solo (Lei 6.766/79)',0]]],
+ ['Direito Ambiental',[['Princípios do Direito Ambiental',0],['Competências ambientais (LC 140/2011)',0],['Política Nacional do Meio Ambiente (Lei 6.938/81); SISNAMA',0],['Licenciamento ambiental',1],['Responsabilidade civil, administrativa e penal ambiental',0]]],
+ ['Direito do Trabalho e Processual',[['Relação de emprego; terceirização',0],['Responsabilidade subsidiária da Administração (Súmula 331 TST)',1],['Contratação sem concurso: efeitos (Súmula 363 TST)',1],['Competência da Justiça do Trabalho; defesa do ente público',0]]],
+ ['Direito Previdenciário',[['Regimes previdenciários; RPPS x RGPS',0],['EC 103/2019 (reforma da previdência)',1],['Aposentadoria do servidor público; regras de transição',0]]],
+ ['Legislação Municipal de Macapá',[['Lei Orgânica do Município de Macapá — princípios e organização',1],['LOM — art. 232: a Procuradoria-Geral do Município (PROGEM)',1],['LC 136/2020 — organização e atribuições da PROGEM',1],['Discussão de constitucionalidade da LC 136/2020 (atuação do MPF)',1],['LC 122/2018 — Estatuto dos Servidores: posse, estágio, estabilidade',1],['LC 122/2018 — deveres, vedações e regime disciplinar',1],['LC 144/2021 (+209/2025) — Código Tributário Municipal',1]]],
+ ['Língua Portuguesa',[['Compreensão e interpretação de texto',1],['Ortografia e acentuação',0],['Pontuação',0],['Classes de palavras; morfossintaxe',0],['Concordância verbal e nominal',1],['Regência verbal e nominal; crase',1],['Coesão, coerência e reescrita de frases',0]]],
+];
+/* ---- Banco de FLASHCARDS (PGM Macapá) — [frente, verso, assunto] ---- */
+const FLASHCARDS_MACAPA=[
+ ['Quais os princípios EXPRESSOS da Administração Pública (art. 37, CF)?','Legalidade, Impessoalidade, Moralidade, Publicidade e Eficiência — "LIMPE". (A eficiência foi incluída pela EC 19/98.)','Direito Administrativo'],
+ ['Diferença entre ANULAÇÃO e REVOGAÇÃO do ato administrativo.','Anulação: por ILEGALIDADE, efeitos ex tunc (retroativos), pela Administração ou pelo Judiciário. Revogação: por conveniência e oportunidade, ato LEGAL, efeitos ex nunc, só pela própria Administração.','Direito Administrativo'],
+ ['Quais os ATRIBUTOS do ato administrativo?','Presunção de legitimidade e veracidade, Imperatividade, Autoexecutoriedade e Tipicidade.','Direito Administrativo'],
+ ['Quais os ELEMENTOS/requisitos do ato administrativo?','Competência, Finalidade, Forma, Motivo e Objeto. (Vícios em competência e forma podem ser convalidados; finalidade, motivo e objeto, não.)','Direito Administrativo'],
+ ['Modalidades de licitação na Lei 14.133/2021.','Pregão, Concorrência, Concurso, Leilão e Diálogo Competitivo. Foram EXTINTAS a tomada de preços e o convite.','Direito Administrativo'],
+ ['Critérios de julgamento na Lei 14.133/2021.','Menor preço; maior desconto; melhor técnica ou conteúdo artístico; técnica e preço; maior lance (leilão); maior retorno econômico.','Direito Administrativo'],
+ ['Qual a natureza da responsabilidade civil do Estado por conduta comissiva?','Objetiva, fundada na teoria do risco administrativo (art. 37, §6º, CF): exige conduta, dano e nexo; admite excludentes (culpa exclusiva da vítima, força maior, caso fortuito).','Direito Administrativo'],
+ ['O que mudou na improbidade com a Lei 14.230/2021?','Passou a exigir DOLO em todas as modalidades (extinta a improbidade culposa). Atos: enriquecimento ilícito (art.9º), prejuízo ao erário (art.10) e violação a princípios (art.11, agora taxativo).','Direito Administrativo'],
+ ['Atributos do poder de polícia.','Discricionariedade, autoexecutoriedade e coercibilidade.','Direito Administrativo'],
+ ['O que é o ciclo de polícia (fases do poder de polícia)?','Ordem, consentimento, fiscalização e sanção. A doutrina (e o STF) entende que consentimento e fiscalização podem ser delegados a pessoa jurídica de direito privado.','Direito Administrativo'],
+ ['Cite as cláusulas exorbitantes dos contratos administrativos.','Alteração e rescisão unilaterais, fiscalização, aplicação de sanções, ocupação temporária e exigência de garantia. Expressam a supremacia do interesse público.','Direito Administrativo'],
+ ['Estabilidade do servidor: requisitos (art. 41, CF).','3 anos de efetivo exercício + aprovação em avaliação especial de desempenho. Exige nomeação por concurso para cargo efetivo.','Direito Administrativo'],
+ ['Princípio da anterioridade tributária (anual e nonagesimal).','Anual: não cobrar no mesmo exercício da lei que instituiu/aumentou. Nonagesimal: aguardar 90 dias. Em regra, aplicam-se as duas cumulativamente.','Direito Tributário'],
+ ['Qual o fato gerador do ISS e de quem é a competência?','ISS: competência MUNICIPAL; fato gerador é a prestação de serviços da lista anexa à LC 116/2003 (serviços que não sejam de transporte interestadual/intermunicipal e comunicação, que são do ICMS).','Direito Tributário'],
+ ['IPTU x ITBI: competência e fatos geradores.','Ambos municipais. IPTU: propriedade/posse/domínio útil de imóvel urbano (fato continuado, anual). ITBI: transmissão ONEROSA inter vivos de bens imóveis e direitos reais (exceto garantia).','Direito Tributário'],
+ ['Prazo de DECADÊNCIA do crédito tributário.','5 anos para a Fazenda constituir o crédito pelo lançamento. Regra geral: 1º dia do exercício seguinte (art. 173, I, CTN); no lançamento por homologação com pagamento, conta do fato gerador (art. 150, §4º).','Direito Tributário'],
+ ['Prazo de PRESCRIÇÃO da cobrança do crédito tributário.','5 anos para a Fazenda ajuizar a execução fiscal, contados da constituição definitiva do crédito (art. 174, CTN).','Direito Tributário'],
+ ['Causas de SUSPENSÃO da exigibilidade do crédito tributário.','MO-DE-RE-CO-CO-PA: Moratória, Depósito do montante integral, Reclamações/Recursos administrativos, Concessão de liminar/tutela e Parcelamento.','Direito Tributário'],
+ ['O que é a CDA e qual seu efeito?','Certidão de Dívida Ativa: título executivo extrajudicial que aparelha a execução fiscal (Lei 6.830/80). Goza de presunção de certeza e liquidez, que admite prova em contrário.','Direito Tributário'],
+ ['Responsabilidade dos sócios por dívidas tributárias (art. 135, CTN).','Respondem pessoalmente diretores/sócios-gerentes por atos com excesso de poder ou infração de lei/contrato. O mero inadimplemento NÃO gera responsabilidade (Súmula 430 STJ).','Direito Tributário'],
+ ['Prazos da Fazenda Pública em juízo (CPC).','Prazo em DOBRO para todas as manifestações processuais, contado em dias úteis (art. 183). Intimação pessoal por carga/remessa/meio eletrônico.','Direito Processual Civil'],
+ ['Quando cabe a remessa necessária (reexame obrigatório)?','Sentença contra a União/Estados/DF/Municípios e suas autarquias/fundações só produz efeito após confirmação pelo tribunal, salvo nas hipóteses de dispensa por valor (art. 496, CPC).','Direito Processual Civil'],
+ ['Como se dá a execução por quantia certa contra a Fazenda Pública?','Não há penhora; após o trânsito, expede-se PRECATÓRIO ou, para valores pequenos, RPV (art. 100 CF). A Fazenda é citada para impugnar (embargos/impugnação).','Direito Processual Civil'],
+ ['O que são precatórios e RPV?','Precatório: requisição de pagamento de débito judicial da Fazenda, pago na ordem cronológica. RPV (Requisição de Pequeno Valor): para débitos abaixo do limite legal, pagos de forma mais célere, sem precatório.','Direito Financeiro'],
+ ['Limite de despesa com pessoal na LRF para Municípios.','60% da receita corrente líquida (RCL). Ultrapassado, há vedações e prazo para recondução; o limite prudencial é 95% do limite (57%).','Direito Financeiro'],
+ ['Quais são os instrumentos de planejamento orçamentário?','PPA (plano plurianual, 4 anos), LDO (lei de diretrizes orçamentárias, anual) e LOA (lei orçamentária anual). Iniciativa do Executivo.','Direito Financeiro'],
+ ['Pressupostos da responsabilidade civil subjetiva.','Conduta, culpa (ou dolo), dano e nexo de causalidade. Na objetiva, dispensa-se a culpa.','Direito Civil'],
+ ['Diferença entre prescrição e decadência (Código Civil).','Prescrição: extingue a PRETENSÃO (direito de exigir), prazos no art. 206. Decadência: extingue o próprio DIREITO potestativo; pode ser legal ou convencional.','Direito Civil'],
+ ['O que prevê a Súmula 331 do TST?','Na terceirização, o ente público responde SUBSIDIARIAMENTE pelas verbas trabalhistas se ficar comprovada sua culpa na fiscalização do contrato (culpa in vigilando).','Direito do Trabalho e Processual'],
+ ['Efeitos da contratação sem concurso público (Súmula 363 TST).','O contrato é nulo; o trabalhador tem direito apenas ao saldo de salários dos dias trabalhados e ao depósito do FGTS.','Direito do Trabalho e Processual'],
+ ['Função social da propriedade urbana — como é cumprida?','Atendendo às exigências do Plano Diretor (Estatuto da Cidade, Lei 10.257/01). Descumprida, o Município pode aplicar parcelamento/edificação compulsórios, IPTU progressivo no tempo e desapropriação com pagamento em títulos.','Direito Urbanístico'],
+ ['O que é a PROGEM e qual sua base na Lei Orgânica de Macapá?','PROGEM é a Procuradoria-Geral do Município de Macapá, prevista no art. 232 da Lei Orgânica. Representa o Município judicial e extrajudicialmente e exerce a consultoria jurídica do Executivo.','Legislação Municipal de Macapá'],
+ ['Por que a LC 136/2020 de Macapá foi questionada?','Por atribuir a servidores COMISSIONADOS funções típicas de advocacia pública (representação/consultoria), o que o MPF apontou como inconstitucional — a advocacia pública deve ser exercida por procuradores efetivos, de carreira.','Legislação Municipal de Macapá'],
+ ['Qual o regime jurídico dos servidores do Município de Macapá?','Estatutário, regido pela LC 122/2018 (Estatuto dos Servidores Públicos do Município de Macapá).','Legislação Municipal de Macapá'],
+ ['Controle de constitucionalidade: diferença entre difuso e concentrado.','Difuso: qualquer juiz/tribunal, no caso concreto, efeitos inter partes. Concentrado: no STF/TJ por ações próprias (ADI, ADC, ADPF), em tese, efeitos erga omnes e vinculante.','Direito Constitucional'],
+ ['Competências do Município (art. 30, CF) — exemplos.','Legislar sobre assuntos de interesse local; suplementar a legislação federal e estadual; instituir e arrecadar seus tributos; organizar serviços públicos locais; promover ordenamento territorial e uso do solo urbano.','Direito Constitucional'],
+];
+/* ---- Banco de QUESTÕES (PGM Macapá) — Certo/Errado comentadas ---- */
+const QUESTOES_MACAPA=[
+ {assunto:'Direito Administrativo',gabarito:'E',enunciado:'A Lei 14.133/2021 manteve as modalidades tomada de preços e convite para contratações de menor valor.',comentario:'Errado. A nova Lei de Licitações extinguiu a tomada de preços e o convite. As modalidades são: pregão, concorrência, concurso, leilão e diálogo competitivo.'},
+ {assunto:'Direito Administrativo',gabarito:'C',enunciado:'A responsabilidade civil do Estado por atos comissivos de seus agentes é objetiva, fundada na teoria do risco administrativo, admitindo causas excludentes ou atenuantes.',comentario:'Certo. Art. 37, §6º, CF. A teoria do risco administrativo permite excludentes como culpa exclusiva da vítima, força maior e caso fortuito.'},
+ {assunto:'Direito Administrativo',gabarito:'E',enunciado:'Após a Lei 14.230/2021, subsiste a modalidade culposa de improbidade administrativa por prejuízo ao erário.',comentario:'Errado. A Lei 14.230/2021 exige dolo em todas as modalidades, extinguindo a improbidade culposa.'},
+ {assunto:'Direito Administrativo',gabarito:'C',enunciado:'A Administração pode anular seus próprios atos quando eivados de ilegalidade, com efeitos retroativos (ex tunc).',comentario:'Certo. Súmulas 346 e 473 do STF: a Administração pode anular atos ilegais (ex tunc) e revogar atos inconvenientes (ex nunc), respeitados os direitos adquiridos.'},
+ {assunto:'Direito Administrativo',gabarito:'E',enunciado:'Vícios relativos ao motivo e ao objeto do ato administrativo são passíveis de convalidação.',comentario:'Errado. Apenas vícios sanáveis de competência (não exclusiva) e de forma admitem convalidação. Finalidade, motivo e objeto não.'},
+ {assunto:'Direito Constitucional',gabarito:'C',enunciado:'A estabilidade do servidor público efetivo é adquirida após três anos de efetivo exercício, condicionada à avaliação especial de desempenho.',comentario:'Certo. Art. 41 da CF, com redação da EC 19/98.'},
+ {assunto:'Direito Constitucional',gabarito:'E',enunciado:'No controle difuso de constitucionalidade, a decisão produz, em regra, efeitos erga omnes e vinculantes.',comentario:'Errado. No controle difuso os efeitos são, em regra, inter partes. Efeitos erga omnes e vinculantes são típicos do controle concentrado.'},
+ {assunto:'Direito Constitucional',gabarito:'C',enunciado:'Compete ao Município instituir e arrecadar os tributos de sua competência, bem como legislar sobre assuntos de interesse local.',comentario:'Certo. Art. 30, I e III, da CF.'},
+ {assunto:'Direito Tributário',gabarito:'C',enunciado:'O prazo decadencial para a Fazenda constituir o crédito tributário é de cinco anos.',comentario:'Certo. Art. 173 (regra geral) e art. 150, §4º (lançamento por homologação) do CTN.'},
+ {assunto:'Direito Tributário',gabarito:'E',enunciado:'O mero inadimplemento da obrigação tributária pela sociedade gera, por si só, a responsabilidade pessoal do sócio-gerente.',comentario:'Errado. Súmula 430 do STJ: o inadimplemento, por si só, não gera responsabilidade do sócio. Exige-se ato com excesso de poderes ou infração à lei/contrato (art. 135 CTN).'},
+ {assunto:'Direito Tributário',gabarito:'C',enunciado:'O ISS é tributo de competência municipal cujo fato gerador é a prestação de serviços constantes da lista anexa à LC 116/2003.',comentario:'Certo. Competência municipal; excluem-se os serviços de transporte interestadual/intermunicipal e de comunicação (ICMS).'},
+ {assunto:'Direito Tributário',gabarito:'E',enunciado:'O parcelamento do débito tributário extingue o crédito tributário.',comentario:'Errado. O parcelamento SUSPENDE a exigibilidade do crédito (art. 151, VI, CTN), não o extingue.'},
+ {assunto:'Direito Tributário',gabarito:'C',enunciado:'A Certidão de Dívida Ativa goza de presunção de certeza e liquidez, que pode ser ilidida por prova inequívoca a cargo do executado.',comentario:'Certo. Art. 204 do CTN e art. 3º da Lei 6.830/80.'},
+ {assunto:'Direito Processual Civil',gabarito:'C',enunciado:'A Fazenda Pública goza de prazo em dobro para todas as suas manifestações processuais, contado em dias úteis.',comentario:'Certo. Art. 183 do CPC/2015.'},
+ {assunto:'Direito Processual Civil',gabarito:'E',enunciado:'A execução por quantia certa contra a Fazenda Pública faz-se mediante penhora de bens públicos.',comentario:'Errado. Bens públicos são impenhoráveis; o pagamento se dá por precatório ou RPV (art. 100 CF).'},
+ {assunto:'Direito Processual Civil',gabarito:'C',enunciado:'Está sujeita à remessa necessária, em regra, a sentença proferida contra o Município, ressalvadas as hipóteses de dispensa por valor.',comentario:'Certo. Art. 496 do CPC, observados os limites de dispensa (ex.: 100 salários mínimos para Municípios que não sejam capitais).'},
+ {assunto:'Direito Financeiro',gabarito:'C',enunciado:'Pela LRF, a despesa total com pessoal do Município não pode exceder 60% da sua receita corrente líquida.',comentario:'Certo. Art. 19, III, da LC 101/2000. O limite prudencial corresponde a 95% desse limite.'},
+ {assunto:'Direito Financeiro',gabarito:'E',enunciado:'A Lei Orçamentária Anual (LOA) tem vigência de quatro anos.',comentario:'Errado. A LOA é anual. O PPA é que tem vigência de quatro anos.'},
+ {assunto:'Legislação Municipal de Macapá',gabarito:'C',enunciado:'A Procuradoria-Geral do Município de Macapá (PROGEM) é a instituição que representa o Município judicial e extrajudicialmente e exerce a consultoria jurídica do Poder Executivo.',comentario:'Certo. A PROGEM está prevista na Lei Orgânica do Município (art. 232) e organizada pela LC 136/2020.'},
+ {assunto:'Legislação Municipal de Macapá',gabarito:'E',enunciado:'É compatível com a Constituição atribuir a servidores ocupantes exclusivamente de cargos em comissão as funções de representação judicial e consultoria jurídica do Município.',comentario:'Errado. A advocacia pública deve ser exercida por procuradores de carreira (efetivos). O MPF apontou a inconstitucionalidade de dispositivos da LC 136/2020 de Macapá nesse ponto.'},
+ {assunto:'Direito do Trabalho e Processual',gabarito:'C',enunciado:'Comprovada a culpa na fiscalização do contrato, o ente público responde subsidiariamente pelas verbas trabalhistas dos empregados da empresa terceirizada.',comentario:'Certo. Súmula 331, V, do TST (culpa in vigilando).'},
+ {assunto:'Direito Urbanístico',gabarito:'C',enunciado:'O IPTU progressivo no tempo é instrumento de indução do cumprimento da função social da propriedade urbana, aplicável ao solo urbano não edificado, subutilizado ou não utilizado.',comentario:'Certo. Art. 182, §4º, II, da CF e art. 7º do Estatuto da Cidade (Lei 10.257/01).'},
 ];
 const EDITAL_TRT8=[
  ['Língua Portuguesa',[['Interpretação de texto',1],['Concordância e regência; crase',0],['Pontuação; redação oficial',0]]],
@@ -669,8 +779,8 @@ const EDITAL_GESTAO=[
  ['Legislação Estadual do Amapá',[['Constituição do Estado do Amapá',1],['Regime Jurídico dos Servidores do Estado',1],['Organização administrativa estadual',0]]],
 ];
 const PRESETS={
- macapa:{ nome:'Procurador — PGM Macapá', edital:EDITAL_MACAPA,
-   materias:[{nome:'Direito Administrativo',peso:5},{nome:'Direito Constitucional',peso:5},{nome:'Direito Tributário',peso:5},{nome:'Direito Processual Civil',peso:4},{nome:'Legislação Municipal de Macapá',peso:4},{nome:'Direito Financeiro',peso:3},{nome:'Direito Civil',peso:3},{nome:'Língua Portuguesa',peso:3},{nome:'Direito Urbanístico',peso:2},{nome:'Direito Ambiental',peso:2},{nome:'Direito do Trabalho',peso:2},{nome:'Direito Previdenciário',peso:2}],
+ macapa:{ nome:'Procurador — PGM Macapá', edital:EDITAL_MACAPA, flashcards:FLASHCARDS_MACAPA, questoes:QUESTOES_MACAPA,
+   materias:[{nome:'Direito Administrativo',peso:5},{nome:'Direito Constitucional',peso:5},{nome:'Direito Tributário',peso:5},{nome:'Direito Processual Civil',peso:4},{nome:'Legislação Municipal de Macapá',peso:4},{nome:'Direito Financeiro',peso:3},{nome:'Direito Civil',peso:3},{nome:'Língua Portuguesa',peso:3},{nome:'Direito Urbanístico',peso:2},{nome:'Direito Ambiental',peso:2},{nome:'Direito do Trabalho e Processual',peso:2},{nome:'Direito Previdenciário',peso:2}],
    leis:[{titulo:'Lei Orgânica do Município de Macapá',fonte:'https://www.macapa.ap.leg.br/leis/lei-organica-municipal'},{titulo:'LC 136/2020 — Organização da PROGEM',fonte:'https://macapa.ap.gov.br/unidade-administrativa/progem/'},{titulo:'LC 122/2018 — Estatuto dos Servidores de Macapá',fonte:'https://leismunicipais.com.br/lei-organica-macapa-ap'},{titulo:'LC 144/2021 (+209/2025) — Código Tributário Municipal',fonte:'https://macapa.ap.gov.br/leis-tributarias-municipais/'}] },
  trt8:{ nome:'Analista Judiciário — TRT-8 (PA/AP)', edital:EDITAL_TRT8,
    materias:[{nome:'Direito do Trabalho',peso:5},{nome:'Direito Processual do Trabalho',peso:5},{nome:'Direito Constitucional',peso:4},{nome:'Direito Administrativo',peso:4},{nome:'Língua Portuguesa',peso:3},{nome:'Raciocínio Lógico-Matemático',peso:3},{nome:'Direito Civil',peso:3},{nome:'Direito Processual Civil',peso:3},{nome:'Legislação do Judiciário',peso:3},{nome:'Noções de Informática',peso:2},{nome:'Direito Previdenciário',peso:2}],
@@ -680,10 +790,22 @@ const PRESETS={
    leis:[{titulo:'Constituição do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Regime Jurídico dos Servidores do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Legislação Tributária Estadual do Amapá (ICMS)',fonte:'https://sefaz.portal.ap.gov.br/'}] },
 };
 async function aplicarPreset(concursoId,P){
+  // ciclo: não sobrescreve se já houver matérias (preserva ajustes do usuário)
   const ciclo=await db.ciclo.where('concursoId').equals(concursoId).first();
-  if(ciclo) await db.ciclo.update(ciclo.id,{materias:P.materias,horasDia:3}); else await db.ciclo.add({concursoId,materias:P.materias,horasDia:3,blocos:[]});
-  for(const l of P.leis){ const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first(); if(!ja) await db.leis.add({concursoId,titulo:l.titulo,texto:`⚠️ Cole aqui o texto oficial desta lei (artigo por artigo).\nFonte: ${l.fonte}`,criado:todayISO()}); }
+  if(!ciclo) await db.ciclo.add({concursoId,materias:P.materias,horasDia:3,blocos:[]});
+  else if(!(ciclo.materias&&ciclo.materias.length)) await db.ciclo.update(ciclo.id,{materias:P.materias});
+  // leis: adiciona as que faltam
+  for(const l of (P.leis||[])){ const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first(); if(!ja) await db.leis.add({concursoId,titulo:l.titulo,texto:`⚠️ Cole aqui o texto oficial desta lei (artigo por artigo).\nFonte: ${l.fonte}`,criado:todayISO()}); }
+  // edital: completa tópicos faltantes
   await seedEdital(concursoId,P.edital);
+  // flashcards: semeia só se ainda não houver nenhum
+  if((P.flashcards||[]).length && (await db.flashcards.where('concursoId').equals(concursoId).count())===0){
+    for(const [frente,verso,assunto] of P.flashcards) await db.flashcards.add({concursoId,frente,verso,assunto,due:todayISO(),intervalo:0,ef:2.5,reps:0,criado:todayISO()});
+  }
+  // questões: semeia só se ainda não houver nenhuma
+  if((P.questoes||[]).length && (await db.questoes.where('concursoId').equals(concursoId).count())===0){
+    for(const q of P.questoes) await db.questoes.add({concursoId,assunto:q.assunto,banca:'CEBRASPE (Certo/Errado)',enunciado:q.enunciado,tipo:'ce',alternativas:null,gabarito:q.gabarito,comentario:q.comentario,criado:todayISO()});
+  }
 }
 async function carregarPreset(key){
   const P=PRESETS[key]; if(!P) return;
@@ -710,13 +832,17 @@ $('#reset-all').addEventListener('click', async ()=>{ if(!confirm('Apagar TODOS 
 function renderTudo(){ renderHoje(); renderDashboard(); renderCards(); iniciarRevisao(); }
 async function init(){
   await carregarConcursos(); // garante ao menos um concurso
-  // Se não há NENHUM edital ainda, já deixa o Procurador PGM Macapá pronto no concurso atual.
+  let c = await db.concursos.get(estado.concursoId);
   const totalTopicos = await db.editalTopicos.count();
   if(totalTopicos===0){
-    const c = await db.concursos.get(estado.concursoId);
-    if(c && (c.nome==='Meu concurso' || !c.nome)){ await db.concursos.update(c.id,{nome:PRESETS.macapa.nome}); }
+    // Primeira vez: já deixa o Procurador PGM Macapá pronto (edital + flashcards + questões).
+    if(c && (c.nome==='Meu concurso' || !c.nome)){ await db.concursos.update(c.id,{nome:PRESETS.macapa.nome}); c.nome=PRESETS.macapa.nome; }
     await aplicarPreset(estado.concursoId, PRESETS.macapa);
     await carregarConcursos();
+  } else {
+    // Já tinha o app: completa com conteúdo novo (flashcards/questões/tópicos) se for um concurso conhecido.
+    const P = Object.values(PRESETS).find(p=>p.nome===c?.nome);
+    if(P) await aplicarPreset(estado.concursoId, P);
   }
   renderTudo();
 }
