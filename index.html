@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<title>Meu Controle de Estudos — Concursos Amapá</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Estudos">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: { brand: { 300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' } } } } }
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .view { display: none; }
+  .view.active { display: block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .nav-btn.active { background: #1d4ed8; color: #fff; }
+  textarea, input, select { color-scheme: dark; }
+</style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased">
+
+<div class="flex min-h-screen">
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="w-60 shrink-0 bg-slate-950/80 border-r border-slate-800 flex flex-col fixed md:static inset-y-0 left-0 z-40 -translate-x-full md:translate-x-0 transition-transform">
+    <div class="p-4 border-b border-slate-800">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center font-black text-lg">✓</div>
+        <div>
+          <div class="font-bold leading-tight">Meu Controle</div>
+          <div class="text-[10px] text-slate-500 leading-tight">de estudos · concursos</div>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-2 space-y-1 text-sm">
+      <button data-view="hoje"       class="nav-btn active w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">☀️ <span>Hoje</span></button>
+      <button data-view="dashboard"  class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📊 <span>Painel</span></button>
+      <button data-view="edital"     class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📋 <span>Edital</span></button>
+      <button data-view="cronograma" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🗓️ <span>Cronograma</span></button>
+      <button data-view="flashcards" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🃏 <span>Flashcards</span></button>
+      <button data-view="leis"       class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">📜 <span>Leis</span></button>
+      <button data-view="simulados"  class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">🧪 <span>Simulados</span></button>
+      <div class="pt-2 mt-2 border-t border-slate-800"></div>
+      <button data-view="config"     class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-left">⚙️ <span>Configurações</span></button>
+    </nav>
+    <div class="p-3 text-[10px] text-slate-600 border-t border-slate-800">Tudo salvo no seu navegador. Faça backup em Config.</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="h-14 border-b border-slate-800 flex items-center justify-between px-4 gap-3 sticky top-0 bg-slate-900/90 backdrop-blur z-30">
+      <button id="menu-toggle" class="md:hidden p-2 -ml-2">☰</button>
+      <div class="flex items-center gap-2 text-sm text-slate-400">
+        <select id="concurso-select" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-sm"></select>
+        <button id="novo-concurso" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">+ concurso</button>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <div class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500/10 text-orange-400" title="Dias seguidos estudando">🔥 <span id="streak">0</span></div>
+        <div class="px-2 py-1 rounded-lg bg-slate-800" title="Flashcards para revisar hoje">🃏 <span id="due-badge">0</span></div>
+      </div>
+    </header>
+
+    <main class="flex-1 p-4 md:p-6 max-w-6xl w-full mx-auto">
+
+      <!-- ============ HOJE ============ -->
+      <section id="view-hoje" class="view active">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+          <h1 class="text-2xl font-bold">☀️ Hoje</h1>
+          <button id="hoje-config" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">⚙️ metas</button>
+        </div>
+        <p class="text-slate-400 text-sm mb-4" id="hoje-data"></p>
+
+        <div id="hoje-metas" class="bg-slate-800/40 rounded-xl p-4 border border-slate-800 mb-4 hidden">
+          <h3 class="text-sm font-semibold mb-2">⚙️ Metas diárias</h3>
+          <div class="flex flex-wrap items-end gap-3">
+            <div><label class="text-xs text-slate-400">Questões/dia</label><input id="meta-q" type="number" min="0" class="block w-24 mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm"></div>
+            <div><label class="text-xs text-slate-400">Minutos/dia</label><input id="meta-min" type="number" min="0" class="block w-24 mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm"></div>
+            <button id="meta-salvar" class="px-4 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Salvar metas</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-orange-400" id="h-streak">0</div><div class="text-[11px] text-slate-400">🔥 dias seguidos</div></div>
+          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-brand-400" id="h-due">0</div><div class="text-[11px] text-slate-400">🃏 revisar hoje</div></div>
+          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-violet-400" id="h-qhoje">0</div><div class="text-[11px] text-slate-400">❓ questões hoje</div></div>
+          <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-800 text-center"><div class="text-2xl font-black text-emerald-400" id="h-tempo">0min</div><div class="text-[11px] text-slate-400">⏱️ tempo hoje</div></div>
+        </div>
+
+        <div class="bg-gradient-to-br from-brand-900/40 to-slate-800/40 rounded-xl p-5 border border-brand-800 mb-5">
+          <div class="flex items-center justify-between mb-1">
+            <h2 class="font-semibold">🎯 Sua missão de hoje</h2>
+            <span class="text-xs text-slate-400" id="h-progresso-dia">0/0</span>
+          </div>
+          <p class="text-sm text-slate-300 mb-1">Matéria do dia: <b id="h-materia" class="text-brand-300">—</b> <span id="h-materia-prio"></span></p>
+          <div class="h-2 bg-slate-700 rounded mb-4"><div id="h-bar-dia" class="h-2 rounded bg-emerald-500" style="width:0%"></div></div>
+          <div id="h-checklist" class="space-y-2"></div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
+            <h2 class="font-semibold mb-3">✏️ Registrar estudo <span class="text-xs font-normal text-slate-400">(o que você fez no seu curso)</span></h2>
+            <div class="grid grid-cols-2 gap-2">
+              <select id="rg-materia" class="col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"></select>
+              <select id="rg-tipo" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                <option value="teoria">Teoria/aula</option><option value="questoes" selected>Questões</option>
+                <option value="revisao">Revisão</option><option value="lei">Lei seca</option><option value="leitura">Leitura/PDF</option>
+              </select>
+              <input id="rg-min" type="number" min="0" placeholder="minutos" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+              <input id="rg-q" type="number" min="0" placeholder="nº questões" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+              <input id="rg-acertos" type="number" min="0" placeholder="acertos" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <button id="rg-salvar" class="w-full mt-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Registrar</button>
+          </div>
+          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
+            <h2 class="font-semibold mb-3">🔥 Matérias que mais caem <span class="text-xs font-normal text-slate-400">(foque aqui)</span></h2>
+            <div id="h-foco" class="space-y-2 text-sm"></div>
+          </div>
+        </div>
+
+        <h2 class="font-semibold mt-5 mb-2 text-sm text-slate-400">Registros de hoje</h2>
+        <div id="h-registros" class="space-y-1"></div>
+      </section>
+
+      <!-- ============ PAINEL ============ -->
+      <section id="view-dashboard" class="view">
+        <h1 class="text-2xl font-bold mb-1">📊 Painel</h1>
+        <p class="text-slate-400 text-sm mb-6" id="hoje-label"></p>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-brand-400" id="kpi-due">0</div><div class="text-xs text-slate-400 mt-1">Revisões pendentes</div></div>
+          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-emerald-400" id="kpi-acerto">—</div><div class="text-xs text-slate-400 mt-1">% de acerto geral</div></div>
+          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-violet-400" id="kpi-questoes">0</div><div class="text-xs text-slate-400 mt-1">Questões registradas</div></div>
+          <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-800"><div class="text-3xl font-black text-orange-400" id="kpi-cards">0</div><div class="text-xs text-slate-400 mt-1">Flashcards criados</div></div>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
+            <h2 class="font-semibold mb-3">📈 Desempenho por matéria</h2>
+            <div id="desempenho-list" class="space-y-2 text-sm text-slate-400"><p class="text-slate-500">Registre questões (na tela Hoje) para ver seu desempenho.</p></div>
+          </div>
+          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
+            <h2 class="font-semibold mb-3">📅 Últimos 7 dias</h2>
+            <div id="semana-list" class="space-y-1 text-sm"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ EDITAL ============ -->
+      <section id="view-edital" class="view">
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <h1 class="text-2xl font-bold">📋 Edital Verticalizado</h1>
+          <div class="flex gap-2">
+            <button id="ed-add-abrir" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">+ Tópico</button>
+          </div>
+        </div>
+        <p class="text-slate-400 text-sm mb-4">Marque <b>✓</b> o que já domina. 🔴 = alta incidência. Carregue um concurso pronto em ⚙️ Configurações.</p>
+        <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-800 mb-4">
+          <div class="flex justify-between text-sm mb-1"><span>Progresso geral</span><span id="ed-pct">0%</span></div>
+          <div class="h-3 bg-slate-700 rounded"><div id="ed-bar" class="h-3 rounded bg-brand-500" style="width:0%"></div></div>
+          <p class="text-xs text-slate-500 mt-1"><span id="ed-feitos">0</span> de <span id="ed-total">0</span> tópicos dominados</p>
+        </div>
+        <div id="ed-add-form" class="bg-slate-800/40 rounded-xl p-4 border border-slate-800 mb-4 hidden">
+          <div class="grid sm:grid-cols-2 gap-2">
+            <input id="ed-add-disc" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Disciplina (ex: Direito Administrativo)">
+            <input id="ed-add-top" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Tópico (ex: Poder de polícia)">
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <label class="text-xs text-slate-400 flex items-center gap-1"><input id="ed-add-alta" type="checkbox" class="w-4 h-4"> marcar como 🔴 alta incidência</label>
+            <button id="ed-add-salvar" class="ml-auto px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Adicionar</button>
+          </div>
+        </div>
+        <div id="ed-conteudo" class="space-y-3"></div>
+        <div id="ed-vazio" class="text-center text-slate-500 py-16"><div class="text-5xl mb-3">📋</div><p>Nenhum edital carregado para este concurso.</p><p class="text-sm mt-1">Carregue um pronto em <b>⚙️ Configurações</b> ou adicione tópicos manualmente.</p></div>
+      </section>
+
+      <!-- ============ CRONOGRAMA ============ -->
+      <section id="view-cronograma" class="view">
+        <h1 class="text-2xl font-bold mb-1">🗓️ Cronograma — Ciclo de Estudos</h1>
+        <p class="text-slate-400 text-sm mb-5">Cadastre matérias com peso. O ciclo distribui o tempo e você gira pelos blocos.</p>
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
+            <h2 class="font-semibold mb-3">Matérias e pesos</h2>
+            <div class="flex gap-2 mb-3">
+              <input id="cic-mat" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Ex: Direito Constitucional">
+              <select id="cic-peso" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-sm">
+                <option value="1">Peso 1</option><option value="2">Peso 2</option><option value="3" selected>Peso 3</option><option value="4">Peso 4</option><option value="5">Peso 5</option>
+              </select>
+              <button id="cic-add" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm">+</button>
+            </div>
+            <div id="cic-materias" class="space-y-2 mb-4"></div>
+            <div class="flex items-center gap-2 border-t border-slate-800 pt-3">
+              <label class="text-xs text-slate-400">Horas/dia</label>
+              <input id="cic-horas" type="number" min="1" max="16" value="3" class="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-sm">
+              <button id="cic-gerar" class="ml-auto px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm font-medium">Gerar ciclo</button>
+            </div>
+          </div>
+          <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 flex flex-col items-center justify-center">
+            <h2 class="font-semibold mb-1 self-start">⏱️ Pomodoro</h2>
+            <div id="pomo-display" class="text-6xl font-black tabular-nums my-4">25:00</div>
+            <div id="pomo-fase" class="text-sm text-slate-400 mb-4">Foco</div>
+            <div class="flex gap-2">
+              <button id="pomo-toggle" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Iniciar</button>
+              <button id="pomo-reset" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">Zerar</button>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">Pomodoros hoje: <b id="pomo-count">0</b></p>
+          </div>
+        </div>
+        <h2 class="font-semibold mt-6 mb-2">Seu ciclo</h2>
+        <div id="ciclo-blocos" class="space-y-2"><p class="text-slate-500 text-sm">Cadastre matérias e clique em <b>Gerar ciclo</b>.</p></div>
+      </section>
+
+      <!-- ============ FLASHCARDS ============ -->
+      <section id="view-flashcards" class="view">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h1 class="text-2xl font-bold">🃏 Flashcards <span class="text-sm font-normal text-slate-400">(revisão espaçada)</span></h1>
+          <button id="abrir-card-manual" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm">+ Novo card</button>
+        </div>
+        <div id="card-manual" class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 mb-5 hidden">
+          <div class="grid md:grid-cols-2 gap-3">
+            <div><label class="text-xs text-slate-400">Frente (pergunta)</label><textarea id="cm-frente" rows="3" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"></textarea></div>
+            <div><label class="text-xs text-slate-400">Verso (resposta)</label><textarea id="cm-verso" rows="3" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"></textarea></div>
+          </div>
+          <div class="flex items-center gap-2 mt-3">
+            <input id="cm-assunto" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Assunto (ex: Princípios constitucionais)">
+            <button id="cm-salvar" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Salvar card</button>
+          </div>
+        </div>
+        <div id="revisao-box" class="bg-slate-800/40 rounded-xl p-6 border border-slate-800 mb-5">
+          <div id="revisao-vazio" class="text-center py-8"><div class="text-4xl mb-2">✅</div><p class="text-slate-300 font-medium">Nenhuma revisão pendente!</p><p class="text-slate-500 text-sm">Crie novos cards ou volte amanhã.</p></div>
+          <div id="revisao-ativo" class="hidden">
+            <div class="flex justify-between text-xs text-slate-400 mb-3"><span>Revisando <b id="rev-restantes">0</b> cards</span><span id="rev-assunto" class="px-2 py-0.5 rounded bg-slate-700"></span></div>
+            <div id="rev-frente" class="text-lg min-h-[80px] grid place-items-center text-center px-4 py-6 bg-slate-900 rounded-lg"></div>
+            <div id="rev-verso" class="hidden text-base text-emerald-300 mt-3 px-4 py-4 bg-slate-900/60 rounded-lg border border-emerald-900/40"></div>
+            <button id="rev-mostrar" class="w-full mt-4 py-3 rounded-lg bg-brand-600 hover:bg-brand-700 font-medium">Mostrar resposta</button>
+            <div id="rev-grades" class="hidden grid grid-cols-4 gap-2 mt-4">
+              <button data-grade="0" class="py-2 rounded-lg bg-red-600/80 hover:bg-red-600 text-sm">Errei</button>
+              <button data-grade="3" class="py-2 rounded-lg bg-orange-600/80 hover:bg-orange-600 text-sm">Difícil</button>
+              <button data-grade="4" class="py-2 rounded-lg bg-brand-600/80 hover:bg-brand-600 text-sm">Bom</button>
+              <button data-grade="5" class="py-2 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-sm">Fácil</button>
+            </div>
+          </div>
+        </div>
+        <h2 class="font-semibold mb-2 text-sm text-slate-400">Todos os cards (<span id="cards-total">0</span>)</h2>
+        <div id="cards-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </section>
+
+      <!-- ============ LEIS ============ -->
+      <section id="view-leis" class="view">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h1 class="text-2xl font-bold">📜 Leis <span class="text-sm font-normal text-slate-400">(consulta)</span></h1>
+          <button id="lei-nova" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm">+ Adicionar lei</button>
+        </div>
+        <div id="lei-form" class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 mb-5 hidden">
+          <input id="lei-titulo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2" placeholder="Título (ex: Lei Orgânica do Município de Macapá)">
+          <textarea id="lei-texto" rows="8" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono" placeholder="Cole o texto da lei (Art. 1º ... Art. 2º ...). O app separa por artigo."></textarea>
+          <div class="flex justify-end gap-2 mt-2">
+            <button id="lei-cancelar" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm">Cancelar</button>
+            <button id="lei-salvar" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Salvar lei</button>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4">
+          <div id="lei-lista" class="md:col-span-1 space-y-2"></div>
+          <div id="lei-leitor" class="md:col-span-2 bg-slate-800/40 rounded-xl p-5 border border-slate-800 min-h-[300px]"><p class="text-slate-500 text-sm">Selecione uma lei à esquerda para ler artigo por artigo.</p></div>
+        </div>
+      </section>
+
+      <!-- ============ SIMULADOS (registro manual) ============ -->
+      <section id="view-simulados" class="view">
+        <h1 class="text-2xl font-bold mb-1">🧪 Simulados</h1>
+        <p class="text-slate-400 text-sm mb-5">Registre o resultado dos simulados que você fez (no seu curso ou em qualquer lugar).</p>
+        <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800 mb-5">
+          <div class="grid sm:grid-cols-4 gap-2">
+            <input id="simreg-foco" class="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="Foco / nome (ex: Simulado geral nº 3)">
+            <input id="simreg-total" type="number" min="1" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="nº questões">
+            <input id="simreg-acertos" type="number" min="0" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="acertos">
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <input id="simreg-min" type="number" min="0" class="w-28 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="tempo (min)">
+            <button id="simreg-salvar" class="ml-auto px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">Registrar simulado</button>
+          </div>
+        </div>
+        <h2 class="font-semibold mb-2 text-sm text-slate-400">Histórico</h2>
+        <div id="sim-historico" class="space-y-2"></div>
+      </section>
+
+      <!-- ============ CONFIG ============ -->
+      <section id="view-config" class="view">
+        <h1 class="text-2xl font-bold mb-4">⚙️ Configurações</h1>
+        <div class="bg-gradient-to-br from-brand-900/40 to-slate-800/40 rounded-xl p-5 border border-brand-800 mb-4">
+          <h2 class="font-semibold mb-1">🎓 Concursos prontos (Amapá)</h2>
+          <p class="text-xs text-slate-400 mb-3">Cada botão cria o concurso já com <b>edital verticalizado</b>, <b>pesos no Ciclo</b> e <b>leis</b>.</p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button data-preset="macapa" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">⚖️ PGM Macapá<br><span class="text-[10px] font-normal opacity-80">Procurador</span></button>
+            <button data-preset="trt8" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">⚖️ TRT-8 (PA/AP)<br><span class="text-[10px] font-normal opacity-80">Analista Judiciário</span></button>
+            <button data-preset="gestao" class="preset-btn flex-1 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-sm font-medium">⚖️ Gestão Gov. AP<br><span class="text-[10px] font-normal opacity-80">Analista Jurídico</span></button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-2">⚠️ Editais ainda não publicados — conteúdo é projeção. Carregue os 3 e troque pelo seletor no topo.</p>
+        </div>
+        <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-800">
+          <h2 class="font-semibold mb-3">💾 Backup dos dados</h2>
+          <p class="text-xs text-slate-400 mb-3">Tudo é salvo no seu navegador. Exporte um backup regularmente.</p>
+          <div class="flex gap-2 flex-wrap">
+            <button id="export-json" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">⬇️ Exportar backup</button>
+            <label class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700 cursor-pointer">⬆️ Importar backup<input id="import-json" type="file" accept="application/json" class="hidden"></label>
+            <button id="reset-all" class="px-4 py-2 rounded-lg bg-red-900/40 hover:bg-red-900/60 text-sm border border-red-900 text-red-300">🗑️ Apagar tudo</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+<script type="module">
+/* =====================================================================
+   MEU CONTROLE DE ESTUDOS — 100% offline, sem IA. Dados no navegador.
+   ===================================================================== */
+const db = new Dexie('aprovaia');
+db.version(1).stores({ concursos:'++id, nome', questoes:'++id, concursoId, assunto, banca', respostas:'++id, questaoId, data, acertou', flashcards:'++id, concursoId, assunto, due', sessoes:'++id, data' });
+db.version(2).stores({ leis:'++id, concursoId, titulo', ciclo:'++id, concursoId', simulados:'++id, concursoId, data', redacoes:'++id, concursoId, data' });
+db.version(3).stores({ editalTopicos:'++id, concursoId, disciplina' });
+
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const todayISO = ()=> new Date().toISOString().slice(0,10);
+const cap = s=> s.charAt(0).toUpperCase()+s.slice(1);
+const tipoLabel = t=>({teoria:'📖 Teoria/aula',questoes:'❓ Questões',revisao:'🔁 Revisão',lei:'📜 Lei seca',leitura:'📰 Leitura/PDF',simulado:'🧪 Simulado'}[t]||t);
+let estado = { concursoId:null };
+
+function toast(msg,type='info'){
+  const c={info:'bg-slate-700',ok:'bg-emerald-600',err:'bg-red-600'}[type]||'bg-slate-700';
+  const el=document.createElement('div'); el.className=`${c} text-white text-sm px-4 py-2 rounded-lg shadow-lg`; el.textContent=msg;
+  $('#toast').appendChild(el); setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3000);
+}
+
+/* ---------- navegação ---------- */
+function showView(name){
+  $$('.view').forEach(v=>v.classList.remove('active'));
+  $('#view-'+name)?.classList.add('active');
+  $$('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  $('#sidebar').classList.add('-translate-x-full');
+  if(name==='hoje') renderHoje();
+  if(name==='dashboard') renderDashboard();
+  if(name==='edital') renderEdital();
+  if(name==='cronograma') renderCiclo();
+  if(name==='flashcards') iniciarRevisao();
+  if(name==='leis') renderLeis();
+  if(name==='simulados') renderSimHistorico();
+}
+$$('.nav-btn').forEach(b=> b.addEventListener('click', ()=>showView(b.dataset.view)));
+$('#menu-toggle').addEventListener('click', ()=> $('#sidebar').classList.toggle('-translate-x-full'));
+
+/* ---------- concursos ---------- */
+async function carregarConcursos(){
+  let lista = await db.concursos.toArray();
+  if(lista.length===0){ const id=await db.concursos.add({nome:'Meu concurso',criado:todayISO()}); lista=await db.concursos.toArray(); estado.concursoId=id; }
+  estado.concursoId = estado.concursoId || lista[0].id;
+  $('#concurso-select').innerHTML = lista.map(c=>`<option value="${c.id}" ${c.id==estado.concursoId?'selected':''}>${c.nome}</option>`).join('');
+}
+$('#concurso-select').addEventListener('change', e=>{ estado.concursoId=+e.target.value; renderTudo(); });
+$('#novo-concurso').addEventListener('click', async ()=>{
+  const nome=prompt('Nome do concurso:'); if(!nome) return;
+  const id=await db.concursos.add({nome,criado:todayISO()}); estado.concursoId=id;
+  await carregarConcursos(); renderTudo();
+});
+
+/* ---------- sessões / streak ---------- */
+async function registrarSessao(){ const h=todayISO(); const ex=await db.sessoes.where('data').equals(h).first(); if(!ex) await db.sessoes.add({data:h}); }
+async function calcStreak(){
+  const dias=(await db.sessoes.toArray()).map(s=>s.data).sort().reverse();
+  if(dias.length===0) return 0;
+  let streak=0,d=new Date();
+  for(let i=0;i<400;i++){ const iso=d.toISOString().slice(0,10); if(dias.includes(iso)) streak++; else if(iso!==todayISO()) break; d.setDate(d.getDate()-1); }
+  return streak;
+}
+
+/* =====================================================================
+   HOJE
+   ===================================================================== */
+async function renderHoje(){
+  $('#hoje-data').textContent = cap(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}));
+  const metaQ=+(localStorage.getItem('meta_q')||30), metaMin=+(localStorage.getItem('meta_min')||120);
+  $('#meta-q').value=metaQ; $('#meta-min').value=metaMin;
+  const hoje=todayISO();
+  const sess=(await db.sessoes.toArray()).filter(s=>s.data===hoje && (s.concursoId==null||s.concursoId===estado.concursoId));
+  const tMin=sess.reduce((s,x)=>s+(+x.minutos||0),0), tQ=sess.reduce((s,x)=>s+(+x.questoes||0),0);
+  $('#h-tempo').textContent = tMin>=60?(Math.floor(tMin/60)+'h'+(tMin%60?(tMin%60)+'m':'')):tMin+'min';
+  $('#h-qhoje').textContent = tQ;
+  const cards=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray();
+  const due=cards.filter(c=>c.due<=hoje).length;
+  $('#h-due').textContent=due; $('#h-streak').textContent=await calcStreak();
+  const ciclo=await getCiclo();
+  const mats=(ciclo.materias||[]).slice().sort((a,b)=>b.peso-a.peso);
+  let materia='—',prio='';
+  if(mats.length){ const dn=Math.floor(Date.now()/86400000); const m=mats[dn%mats.length]; materia=m.nome; prio=m.peso>=5?'🔴 prioridade máxima':(m.peso>=4?'🟠 prioridade alta':''); }
+  $('#h-materia').textContent=materia; $('#h-materia-prio').textContent=prio;
+  $('#rg-materia').innerHTML=(mats.length?mats.map(m=>m.nome):['Geral']).map(n=>`<option ${n===materia?'selected':''}>${n}</option>`).join('');
+  renderChecklist(materia,metaQ,metaMin,due);
+  await renderFoco(mats);
+  $('#h-registros').innerHTML = sess.length? sess.slice().reverse().map(s=>`<div class="flex justify-between text-xs bg-slate-800/40 rounded px-3 py-1.5 border border-slate-800"><span>${tipoLabel(s.tipo)} · ${s.materia||'Geral'}</span><span class="text-slate-400">${s.minutos?s.minutos+'min ':''}${s.questoes?('· '+s.questoes+'q'+(s.acertos!=null?' ('+s.acertos+'✓)':'')):''}</span></div>`).join('') : '<p class="text-slate-500 text-xs">Nada registrado hoje. Use "Registrar estudo" acima. 💪</p>';
+}
+function renderChecklist(materia,metaQ,metaMin,due){
+  const key=`hoje_${estado.concursoId}_${todayISO()}`;
+  const st=JSON.parse(localStorage.getItem(key)||'{}');
+  const items=[{k:'flash',txt:`Revisar flashcards vencidos (${due})`},{k:'quest',txt:`Resolver ${metaQ} questões de ${materia}`},{k:'teoria',txt:`Estudar teoria/aula de ${materia} (${metaMin} min)`},{k:'lei',txt:`Revisar lei seca / pontos fracos`}];
+  const cont=$('#h-checklist');
+  cont.innerHTML=items.map(i=>`<label class="flex items-center gap-3 bg-slate-900/60 rounded-lg px-3 py-2 cursor-pointer"><input type="checkbox" class="ck w-4 h-4" data-k="${i.k}" ${st[i.k]?'checked':''}><span class="text-sm ${st[i.k]?'line-through text-slate-500':''}">${i.txt}</span></label>`).join('');
+  const done=items.filter(i=>st[i.k]).length;
+  $('#h-progresso-dia').textContent=`${done}/${items.length}`;
+  $('#h-bar-dia').style.width=Math.round(done/items.length*100)+'%';
+  cont.querySelectorAll('.ck').forEach(ch=>ch.addEventListener('change',async ()=>{ st[ch.dataset.k]=ch.checked; localStorage.setItem(key,JSON.stringify(st)); if(ch.checked) await registrarSessao(); renderChecklist(materia,metaQ,metaMin,due); $('#h-streak').textContent=await calcStreak(); }));
+}
+async function renderFoco(matsFallback){
+  const tops=await db.editalTopicos.where('concursoId').equals(estado.concursoId).toArray();
+  if(tops.length){
+    const g={}; tops.forEach(t=>{g[t.disciplina]=g[t.disciplina]||{n:0,alta:0};g[t.disciplina].n++;if(t.alta)g[t.disciplina].alta++;});
+    const rank=Object.entries(g).map(([d,v])=>({d,score:v.alta*2+v.n,alta:v.alta})).sort((a,b)=>b.score-a.score).slice(0,6);
+    const max=rank[0]?.score||1;
+    $('#h-foco').innerHTML=rank.map(r=>{const p=Math.round(r.score/max*100);return `<div><div class="flex justify-between text-xs mb-0.5"><span>${r.d}</span>${r.alta?`<span class="text-red-400">${r.alta}🔴</span>`:''}</div><div class="h-2 bg-slate-700 rounded"><div class="h-2 rounded bg-brand-500" style="width:${p}%"></div></div></div>`;}).join('');
+  } else if(matsFallback&&matsFallback.length){
+    const max=matsFallback[0].peso||5;
+    $('#h-foco').innerHTML=matsFallback.slice(0,6).map(m=>{const p=Math.round(m.peso/max*100);return `<div><div class="flex justify-between text-xs mb-0.5"><span>${m.nome}</span><span class="text-slate-400">peso ${m.peso}</span></div><div class="h-2 bg-slate-700 rounded"><div class="h-2 rounded bg-brand-500" style="width:${p}%"></div></div></div>`;}).join('');
+  } else { $('#h-foco').innerHTML='<p class="text-slate-500 text-xs">Carregue um concurso (⚙️ Configurações) ou monte o Edital para ver o ranking.</p>'; }
+}
+$('#rg-salvar').addEventListener('click', async ()=>{
+  const materia=$('#rg-materia').value,tipo=$('#rg-tipo').value;
+  const minutos=+$('#rg-min').value||0,q=+$('#rg-q').value||0;
+  const acertos=$('#rg-acertos').value===''?null:+$('#rg-acertos').value;
+  if(!minutos&&!q){ toast('Informe ao menos minutos ou nº de questões.','err'); return; }
+  await db.sessoes.add({concursoId:estado.concursoId,data:todayISO(),materia,tipo,minutos,questoes:q,acertos});
+  $('#rg-min').value=$('#rg-q').value=$('#rg-acertos').value=''; toast('Estudo registrado! 💪','ok'); renderHoje(); renderDashboard();
+});
+$('#hoje-config').addEventListener('click', ()=> $('#hoje-metas').classList.toggle('hidden'));
+$('#meta-salvar').addEventListener('click', ()=>{ localStorage.setItem('meta_q',+$('#meta-q').value||0); localStorage.setItem('meta_min',+$('#meta-min').value||0); $('#hoje-metas').classList.add('hidden'); toast('Metas salvas.','ok'); renderHoje(); });
+
+/* =====================================================================
+   PAINEL
+   ===================================================================== */
+async function renderDashboard(){
+  $('#hoje-label').textContent = cap(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}));
+  const hoje=todayISO();
+  const cards=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray();
+  const due=cards.filter(c=>c.due<=hoje).length;
+  const resp=await db.respostas.toArray();
+  const sess=(await db.sessoes.toArray()).filter(s=>s.concursoId==null||s.concursoId===estado.concursoId);
+  const sessQk=sess.filter(s=>(+s.questoes||0)>0&&s.acertos!=null);
+  const manualTotalQ=sess.reduce((a,s)=>a+(+s.questoes||0),0);
+  const knownTotal=resp.length+sessQk.reduce((a,s)=>a+(+s.questoes||0),0);
+  const knownAcertos=resp.filter(r=>r.acertou).length+sessQk.reduce((a,s)=>a+(+s.acertos||0),0);
+  const pct=knownTotal?Math.round(knownAcertos/knownTotal*100):null;
+  $('#kpi-due').textContent=due; $('#kpi-acerto').textContent=pct===null?'—':pct+'%';
+  $('#kpi-questoes').textContent=resp.length+manualTotalQ; $('#kpi-cards').textContent=cards.length;
+  $('#due-badge').textContent=due; $('#streak').textContent=await calcStreak();
+  // desempenho
+  const porAssunto={};
+  resp.forEach(r=>{const a=r.assunto||'Geral';porAssunto[a]=porAssunto[a]||{t:0,a:0};porAssunto[a].t++;if(r.acertou)porAssunto[a].a++;});
+  sessQk.forEach(s=>{const a=s.materia||'Geral';porAssunto[a]=porAssunto[a]||{t:0,a:0};porAssunto[a].t+=(+s.questoes||0);porAssunto[a].a+=(+s.acertos||0);});
+  const ent=Object.entries(porAssunto).sort((x,y)=>(x[1].a/x[1].t)-(y[1].a/y[1].t));
+  const dl=$('#desempenho-list');
+  dl.innerHTML = ent.length? ent.map(([a,v])=>{const p=Math.round(v.a/v.t*100);const cor=p<60?'bg-red-500':p<80?'bg-orange-500':'bg-emerald-500';return `<div><div class="flex justify-between text-xs mb-0.5"><span class="text-slate-300">${a}</span><span>${p}% <span class="text-slate-500">(${v.a}/${v.t})</span></span></div><div class="h-2 bg-slate-700 rounded"><div class="h-2 rounded ${cor}" style="width:${p}%"></div></div></div>`;}).join('') : '<p class="text-slate-500">Registre questões (na tela Hoje) para ver seu desempenho.</p>';
+  // últimos 7 dias
+  const sl=$('#semana-list'); const linhas=[];
+  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const iso=d.toISOString().slice(0,10);
+    const ds=sess.filter(s=>s.data===iso); const mm=ds.reduce((a,s)=>a+(+s.minutos||0),0); const qq=ds.reduce((a,s)=>a+(+s.questoes||0),0);
+    const lbl=d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'});
+    linhas.push(`<div class="flex justify-between items-center ${iso===hoje?'text-brand-300':'text-slate-400'}"><span>${lbl}</span><span class="text-xs">${mm?mm+'min':'—'} ${qq?'· '+qq+'q':''}</span></div>`);
+  }
+  sl.innerHTML=linhas.join('');
+}
+
+/* =====================================================================
+   EDITAL
+   ===================================================================== */
+async function seedEdital(concursoId,estrutura){
+  for(const [disciplina,topicos] of estrutura){ let ordem=0; for(const [topico,alta] of topicos){ const ja=await db.editalTopicos.where('concursoId').equals(concursoId).filter(x=>x.disciplina===disciplina&&x.topico===topico).first(); if(!ja) await db.editalTopicos.add({concursoId,disciplina,topico,alta:alta?1:0,feito:0,ordem}); ordem++; } }
+}
+async function renderEdital(){
+  const itens=await db.editalTopicos.where('concursoId').equals(estado.concursoId).toArray();
+  $('#ed-vazio').classList.toggle('hidden',itens.length>0); $('#ed-conteudo').innerHTML='';
+  const feitos=itens.filter(i=>i.feito).length, pct=itens.length?Math.round(feitos/itens.length*100):0;
+  $('#ed-pct').textContent=pct+'%'; $('#ed-bar').style.width=pct+'%'; $('#ed-feitos').textContent=feitos; $('#ed-total').textContent=itens.length;
+  if(itens.length===0) return;
+  const grupos={}; itens.forEach(i=>{(grupos[i.disciplina]=grupos[i.disciplina]||[]).push(i);});
+  const cont=$('#ed-conteudo');
+  for(const disc of Object.keys(grupos)){
+    const lista=grupos[disc].sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+    const f=lista.filter(x=>x.feito).length,p=Math.round(f/lista.length*100);
+    const det=document.createElement('details'); det.className='bg-slate-800/40 rounded-xl border border-slate-800 overflow-hidden';
+    det.innerHTML=`<summary class="cursor-pointer px-4 py-3 flex items-center gap-3 select-none hover:bg-slate-800/60"><span class="font-semibold flex-1">${disc}</span><span class="text-xs text-slate-400">${f}/${lista.length}</span><span class="w-24 h-2 bg-slate-700 rounded hidden sm:block"><span class="block h-2 rounded ${p===100?'bg-emerald-500':'bg-brand-500'}" style="width:${p}%"></span></span></summary>
+      <div class="px-3 pb-3 space-y-1">${lista.map(i=>`<div class="flex items-start gap-2 rounded-lg px-2 py-2 hover:bg-slate-900/50"><input type="checkbox" class="ed-chk mt-0.5 w-4 h-4 shrink-0" data-id="${i.id}" ${i.feito?'checked':''}><span class="flex-1 text-sm ${i.feito?'line-through text-slate-500':''}">${i.alta?'🔴 ':''}${i.topico}</span><button class="ed-del text-slate-600 hover:text-red-400 text-xs shrink-0" data-id="${i.id}">×</button></div>`).join('')}</div>`;
+    cont.appendChild(det);
+  }
+  $$('.ed-chk',cont).forEach(ch=>ch.addEventListener('change',async ()=>{await db.editalTopicos.update(+ch.dataset.id,{feito:ch.checked?1:0});renderEdital();}));
+  $$('.ed-del',cont).forEach(b=>b.addEventListener('click',async ()=>{await db.editalTopicos.delete(+b.dataset.id);renderEdital();}));
+}
+$('#ed-add-abrir').addEventListener('click', ()=> $('#ed-add-form').classList.toggle('hidden'));
+$('#ed-add-salvar').addEventListener('click', async ()=>{
+  const disc=$('#ed-add-disc').value.trim(),top=$('#ed-add-top').value.trim();
+  if(!disc||!top){ toast('Preencha disciplina e tópico.','err'); return; }
+  const n=await db.editalTopicos.where('concursoId').equals(estado.concursoId).filter(x=>x.disciplina===disc).count();
+  await db.editalTopicos.add({concursoId:estado.concursoId,disciplina:disc,topico:top,alta:$('#ed-add-alta').checked?1:0,feito:0,ordem:n});
+  $('#ed-add-top').value=''; renderEdital(); toast('Tópico adicionado.','ok');
+});
+
+/* =====================================================================
+   CRONOGRAMA + POMODORO
+   ===================================================================== */
+async function getCiclo(){ let c=await db.ciclo.where('concursoId').equals(estado.concursoId).first(); if(!c){const id=await db.ciclo.add({concursoId:estado.concursoId,materias:[],horasDia:3,blocos:[]});c=await db.ciclo.get(id);} return c; }
+async function renderCiclo(){
+  const c=await getCiclo(); $('#cic-horas').value=c.horasDia||3;
+  $('#cic-materias').innerHTML=(c.materias||[]).map((m,i)=>`<div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 text-sm"><span class="flex-1">${m.nome}</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700">peso ${m.peso}</span><button class="cic-del text-slate-600 hover:text-red-400" data-i="${i}">×</button></div>`).join('')||'<p class="text-slate-500 text-sm">Nenhuma matéria ainda.</p>';
+  $$('.cic-del').forEach(b=>b.addEventListener('click',async ()=>{c.materias.splice(+b.dataset.i,1);await db.ciclo.update(c.id,{materias:c.materias});renderCiclo();}));
+  const blocos=c.blocos||[]; const cont=$('#ciclo-blocos');
+  if(blocos.length===0){ cont.innerHTML='<p class="text-slate-500 text-sm">Cadastre matérias e clique em <b>Gerar ciclo</b>.</p>'; return; }
+  const feitos=blocos.filter(b=>b.feito).length;
+  cont.innerHTML=`<div class="text-xs text-slate-400 mb-1">${feitos}/${blocos.length} blocos concluídos ${feitos===blocos.length?'— ciclo completo! 🎉':''}</div>`+blocos.map((b,i)=>`<div class="flex items-center gap-3 rounded-lg px-3 py-3 border ${b.feito?'bg-emerald-900/20 border-emerald-800':'bg-slate-900 border-slate-800'}"><input type="checkbox" class="cic-feito w-4 h-4" data-i="${i}" ${b.feito?'checked':''}><span class="flex-1 text-sm ${b.feito?'line-through text-slate-500':''}">${b.nome}</span><span class="text-xs text-slate-400">${b.minutos} min</span></div>`).join('')+(feitos===blocos.length?'<button id="cic-reiniciar" class="mt-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">↻ Reiniciar ciclo</button>':'');
+  $$('.cic-feito').forEach(ch=>ch.addEventListener('change',async ()=>{c.blocos[+ch.dataset.i].feito=ch.checked;await db.ciclo.update(c.id,{blocos:c.blocos});renderCiclo();}));
+  $('#cic-reiniciar')?.addEventListener('click',async ()=>{c.blocos.forEach(b=>b.feito=false);await db.ciclo.update(c.id,{blocos:c.blocos});renderCiclo();});
+}
+$('#cic-add').addEventListener('click', async ()=>{ const nome=$('#cic-mat').value.trim(); if(!nome) return; const c=await getCiclo(); c.materias.push({nome,peso:+$('#cic-peso').value}); await db.ciclo.update(c.id,{materias:c.materias}); $('#cic-mat').value=''; renderCiclo(); });
+$('#cic-gerar').addEventListener('click', async ()=>{
+  const c=await getCiclo(); if(!c.materias.length){ toast('Adicione matérias primeiro.','err'); return; }
+  const horas=Math.max(1,+$('#cic-horas').value||3); await db.ciclo.update(c.id,{horasDia:horas});
+  const totalMin=horas*60, soma=c.materias.reduce((s,m)=>s+m.peso,0); const blocos=[];
+  c.materias.forEach(m=>{ let min=Math.round(totalMin*(m.peso/soma)/30)*30; min=Math.max(30,min); blocos.push({nome:m.nome,minutos:min,feito:false}); });
+  blocos.sort((a,b)=>b.minutos-a.minutos); await db.ciclo.update(c.id,{blocos}); toast('Ciclo gerado!','ok'); renderCiclo();
+});
+let pomo={secs:25*60,fase:'foco',running:false,timer:null,count:0};
+function pomoRender(){ const m=String(Math.floor(pomo.secs/60)).padStart(2,'0'),s=String(pomo.secs%60).padStart(2,'0'); $('#pomo-display').textContent=`${m}:${s}`; $('#pomo-fase').textContent=pomo.fase==='foco'?'Foco':'Pausa'; $('#pomo-toggle').textContent=pomo.running?'Pausar':'Iniciar'; $('#pomo-count').textContent=pomo.count; }
+$('#pomo-toggle').addEventListener('click', ()=>{
+  pomo.running=!pomo.running;
+  if(pomo.running){ pomo.timer=setInterval(async ()=>{ pomo.secs--; if(pomo.secs<=0){ clearInterval(pomo.timer); pomo.running=false; if(pomo.fase==='foco'){ pomo.count++; await registrarSessao(); toast('Pomodoro concluído! Pausa. ☕','ok'); pomo.fase='pausa'; pomo.secs=5*60; } else { toast('Pausa encerrada. Bora!','info'); pomo.fase='foco'; pomo.secs=25*60; } } pomoRender(); },1000); } else clearInterval(pomo.timer);
+  pomoRender();
+});
+$('#pomo-reset').addEventListener('click', ()=>{ clearInterval(pomo.timer); pomo={secs:25*60,fase:'foco',running:false,timer:null,count:pomo.count}; pomoRender(); });
+pomoRender();
+
+/* =====================================================================
+   FLASHCARDS (manual + SM-2)
+   ===================================================================== */
+$('#abrir-card-manual').addEventListener('click', ()=> $('#card-manual').classList.toggle('hidden'));
+$('#cm-salvar').addEventListener('click', async ()=>{
+  const frente=$('#cm-frente').value.trim(),verso=$('#cm-verso').value.trim(),assunto=$('#cm-assunto').value.trim()||'Geral';
+  if(!frente||!verso){ toast('Preencha frente e verso.','err'); return; }
+  await novoCard(frente,verso,assunto); $('#cm-frente').value=$('#cm-verso').value=''; toast('Card criado!','ok'); renderCards(); renderDashboard();
+});
+async function novoCard(frente,verso,assunto){ await db.flashcards.add({concursoId:estado.concursoId,frente,verso,assunto,due:todayISO(),intervalo:0,ef:2.5,reps:0,criado:todayISO()}); }
+function agendar(card,grade){ let {ef=2.5,intervalo=0,reps=0}=card; if(grade<3){reps=0;intervalo=1;} else { reps+=1; if(reps===1)intervalo=1; else if(reps===2)intervalo=6; else intervalo=Math.round(intervalo*ef); ef=Math.max(1.3,ef+(0.1-(5-grade)*(0.08+(5-grade)*0.02))); } const d=new Date(); d.setDate(d.getDate()+intervalo); return {ef,intervalo,reps,due:d.toISOString().slice(0,10)}; }
+let filaRevisao=[],cardAtual=null;
+async function iniciarRevisao(){ const hoje=todayISO(); const todos=await db.flashcards.where('concursoId').equals(estado.concursoId).toArray(); filaRevisao=todos.filter(c=>c.due<=hoje); proximoCard(); renderCards(); }
+function proximoCard(){
+  const ativo=$('#revisao-ativo'),vazio=$('#revisao-vazio');
+  if(filaRevisao.length===0){ ativo.classList.add('hidden'); vazio.classList.remove('hidden'); return; }
+  vazio.classList.add('hidden'); ativo.classList.remove('hidden'); cardAtual=filaRevisao[0];
+  $('#rev-restantes').textContent=filaRevisao.length; $('#rev-assunto').textContent=cardAtual.assunto;
+  $('#rev-frente').textContent=cardAtual.frente; $('#rev-verso').textContent=cardAtual.verso;
+  $('#rev-verso').classList.add('hidden'); $('#rev-grades').classList.add('hidden'); $('#rev-mostrar').classList.remove('hidden');
+}
+$('#rev-mostrar').addEventListener('click', ()=>{ $('#rev-verso').classList.remove('hidden'); $('#rev-grades').classList.remove('hidden'); $('#rev-mostrar').classList.add('hidden'); });
+$$('#rev-grades button').forEach(b=>b.addEventListener('click', async ()=>{ const upd=agendar(cardAtual,+b.dataset.grade); await db.flashcards.update(cardAtual.id,upd); await registrarSessao(); filaRevisao.shift(); proximoCard(); renderCards(); $('#due-badge').textContent=(await db.flashcards.where('concursoId').equals(estado.concursoId).toArray()).filter(c=>c.due<=todayISO()).length; }));
+async function renderCards(){
+  const lista=await db.flashcards.where('concursoId').equals(estado.concursoId).reverse().toArray();
+  $('#cards-total').textContent=lista.length;
+  $('#cards-list').innerHTML=lista.map(c=>`<div class="bg-slate-800/40 rounded-lg p-3 border border-slate-800 text-sm"><div class="flex justify-between items-start gap-2"><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">${c.assunto}</span><button class="del-c text-slate-600 hover:text-red-400 text-xs" data-id="${c.id}">×</button></div><p class="mt-1 font-medium">${c.frente}</p><p class="mt-1 text-slate-400 text-xs">${c.verso}</p><p class="mt-1 text-[10px] text-slate-600">revisar em: ${c.due}</p></div>`).join('');
+  $$('.del-c',$('#cards-list')).forEach(b=>b.addEventListener('click',async ()=>{await db.flashcards.delete(+b.dataset.id);renderCards();iniciarRevisao();}));
+}
+
+/* =====================================================================
+   LEIS (consulta — sem IA)
+   ===================================================================== */
+$('#lei-nova').addEventListener('click', ()=> $('#lei-form').classList.toggle('hidden'));
+$('#lei-cancelar').addEventListener('click', ()=> $('#lei-form').classList.add('hidden'));
+$('#lei-salvar').addEventListener('click', async ()=>{
+  const titulo=$('#lei-titulo').value.trim(),texto=$('#lei-texto').value.trim();
+  if(!titulo||!texto){ toast('Preencha título e texto.','err'); return; }
+  await db.leis.add({concursoId:estado.concursoId,titulo,texto,criado:todayISO()});
+  $('#lei-titulo').value=$('#lei-texto').value=''; $('#lei-form').classList.add('hidden'); toast('Lei salva!','ok'); renderLeis();
+});
+function dividirArtigos(texto){ const partes=texto.split(/(?=Art\.?\s*\d+)/g).map(s=>s.trim()).filter(Boolean); if(partes.length<=1) return [{conteudo:texto}]; return partes.map(p=>({conteudo:p})); }
+async function renderLeis(){
+  const lista=await db.leis.where('concursoId').equals(estado.concursoId).reverse().toArray();
+  $('#lei-lista').innerHTML=lista.length?lista.map(l=>`<button class="lei-item w-full text-left px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-800 text-sm flex justify-between items-center" data-id="${l.id}"><span>${l.titulo}</span><span class="lei-del text-slate-600 hover:text-red-400" data-id="${l.id}">×</span></button>`).join(''):'<p class="text-slate-500 text-sm">Nenhuma lei adicionada.</p>';
+  $$('.lei-item').forEach(b=>b.addEventListener('click',e=>{if(e.target.classList.contains('lei-del'))return;abrirLei(+b.dataset.id);}));
+  $$('.lei-del').forEach(b=>b.addEventListener('click',async e=>{e.stopPropagation();await db.leis.delete(+b.dataset.id);renderLeis();$('#lei-leitor').innerHTML='<p class="text-slate-500 text-sm">Selecione uma lei.</p>';}));
+}
+async function abrirLei(id){
+  const lei=await db.leis.get(id); const arts=dividirArtigos(lei.texto);
+  $('#lei-leitor').innerHTML=`<h2 class="font-semibold mb-3">${lei.titulo}</h2><div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">${arts.map(a=>`<div class="bg-slate-900 rounded-lg p-3 border border-slate-800"><p class="text-sm whitespace-pre-wrap leading-relaxed">${a.conteudo.replace(/</g,'&lt;')}</p></div>`).join('')}</div>`;
+}
+
+/* =====================================================================
+   SIMULADOS (registro manual)
+   ===================================================================== */
+$('#simreg-salvar').addEventListener('click', async ()=>{
+  const foco=$('#simreg-foco').value.trim()||'Simulado', total=+$('#simreg-total').value||0, acertos=+$('#simreg-acertos').value||0, minutos=+$('#simreg-min').value||0;
+  if(!total){ toast('Informe o nº de questões.','err'); return; }
+  await db.simulados.add({concursoId:estado.concursoId,data:todayISO(),materia:foco,total,acertos,tempoSeg:minutos*60});
+  await db.sessoes.add({concursoId:estado.concursoId,data:todayISO(),materia:foco,tipo:'simulado',minutos,questoes:total,acertos});
+  $('#simreg-foco').value=$('#simreg-total').value=$('#simreg-acertos').value=$('#simreg-min').value='';
+  toast('Simulado registrado!','ok'); renderSimHistorico(); renderDashboard();
+});
+async function renderSimHistorico(){
+  const lista=await db.simulados.where('concursoId').equals(estado.concursoId).reverse().toArray();
+  $('#sim-historico').innerHTML=lista.length?lista.map(s=>{const p=s.total?Math.round(s.acertos/s.total*100):0;return `<div class="flex justify-between items-center bg-slate-800/40 rounded-lg px-4 py-2 border border-slate-800 text-sm"><span>${s.data} · ${s.materia||'Simulado'}</span><span>${s.acertos}/${s.total} · <b class="${p<60?'text-red-400':p<80?'text-orange-400':'text-emerald-400'}">${p}%</b></span></div>`;}).join(''):'<p class="text-slate-500 text-sm">Nenhum simulado registrado ainda.</p>';
+}
+
+/* =====================================================================
+   PRESETS (edital + ciclo + leis) — concursos do Amapá
+   ===================================================================== */
+const EDITAL_MACAPA=[
+ ['Direito Constitucional',[['Constitucionalismo, poder constituinte, eficácia das normas',0],['Direitos e garantias fundamentais (art. 5º)',1],['Remédios constitucionais (HC, MS, MI, HD, ação popular)',0],['Federação e competências do Município (arts. 29-31)',1],['Administração Pública na CF (arts. 37 a 41)',1],['Organização dos Poderes; processo legislativo municipal',0],['Controle de constitucionalidade (ADI, ADC, ADPF)',1],['Ordem social, econômica e financeira; tributação na CF',0]]],
+ ['Direito Administrativo',[['Regime jurídico-administrativo; princípios (LIMPE)',1],['Organização administrativa; administração direta e indireta',0],['Poderes da Administração; poder de polícia',0],['Atos administrativos: invalidação, revogação, convalidação',1],['Licitações e contratos — Lei 14.133/2021',1],['Serviços públicos; concessões e PPP',0],['Agentes públicos; servidor: provimento, estabilidade',1],['Bens públicos; desapropriação',1],['Responsabilidade civil do Estado (art. 37, §6º)',1],['Controle da Administração; Tribunais de Contas',0],['Improbidade administrativa (Lei 8.429/92 c/ 14.230/21)',1],['Processo administrativo (Lei 9.784/99); LAI; LGPD',0]]],
+ ['Direito Tributário',[['Sistema Tributário Nacional; limitações ao poder de tributar',1],['Princípios tributários',0],['Tributos municipais (ISS, IPTU, ITBI, COSIP)',1],['Obrigação tributária; responsabilidade tributária',1],['Crédito tributário (prescrição/decadência)',1],['Garantias e privilégios do crédito',0],['Dívida ativa; CDA e execução fiscal (Lei 6.830/80)',1],['Código Tributário de Macapá (LC 144/2021 + 209/2025)',1]]],
+ ['Direito Processual Civil',[['Normas fundamentais; jurisdição e competência',0],['Fazenda Pública em juízo: prazos e prerrogativas',1],['Tutela provisória',0],['Petição inicial, contestação, peças de defesa',0],['Sentença; coisa julgada; remessa necessária',1],['Recursos',0],['Execução contra a Fazenda; precatórios',1],['Execução fiscal e embargos',1],['Ações constitucionais; precedentes',0]]],
+ ['Direito Financeiro',[['Orçamento público; PPA, LDO, LOA',0],['Receita e despesa pública',0],['Lei de Responsabilidade Fiscal (LC 101/2000)',1],['Precatórios e RPV (art. 100 CF)',1],['Fiscalização e controle (Lei 4.320/64)',0]]],
+ ['Direito Civil',[['LINDB; pessoas e bens',0],['Negócio jurídico; prescrição e decadência',0],['Obrigações; responsabilidade civil',1],['Contratos',0],['Direitos reais (propriedade, posse)',0]]],
+ ['Direito Urbanístico',[['Estatuto da Cidade (10.257/2001); função social',1],['Instrumentos: IPTU progressivo, usucapião urbana',0],['Plano Diretor de Macapá; parcelamento do solo',0]]],
+ ['Direito Ambiental',[['Princípios; competências (LC 140/11); licenciamento',0],['PNMA (Lei 6.938/81); responsabilidade ambiental',0]]],
+ ['Direito do Trabalho',[['Responsabilidade subsidiária (Súmula 331 TST)',1],['Contratação irregular (Súmula 363 TST)',0]]],
+ ['Direito Previdenciário',[['RPPS; EC 103/2019; aposentadoria do servidor',0]]],
+ ['Legislação Municipal de Macapá',[['Lei Orgânica do Município de Macapá',1],['LC 136/2020 — Organização da PROGEM',1],['LC 122/2018 — Estatuto dos Servidores',1],['LC 144/2021 + 209/2025 — Código Tributário',1]]],
+ ['Língua Portuguesa',[['Interpretação de texto',1],['Concordância e regência; crase',0],['Pontuação; reescrita',0]]],
+];
+const EDITAL_TRT8=[
+ ['Língua Portuguesa',[['Interpretação de texto',1],['Concordância e regência; crase',0],['Pontuação; redação oficial',0]]],
+ ['Raciocínio Lógico-Matemático',[['Lógica proposicional',1],['Argumentação e diagramas',0],['Sequências; combinatória básica',0]]],
+ ['Noções de Informática',[['Segurança da informação',0],['Internet e redes',0],['Sistemas do Judiciário (PJe)',1]]],
+ ['Legislação do Judiciário',[['Regimento Interno do TRT-8',1],['Lei 11.416/2006 — carreiras',1],['Lei 8.112/90 — servidores federais',1],['Código de Ética; Resoluções CNJ/CSJT',0]]],
+ ['Direito do Trabalho',[['Relação de emprego e empregador',1],['Contrato de trabalho',1],['Jornada de trabalho',1],['Remuneração e salário',1],['Alteração, suspensão e interrupção',0],['Rescisão e verbas',1],['FGTS',0],['Estabilidade e garantias',0],['Trabalho da mulher e do menor',0],['Direito coletivo e sindical',1]]],
+ ['Direito Processual do Trabalho',[['Organização e competência da JT',1],['Partes e jus postulandi',0],['Audiência; provas',0],['Sentença e coisa julgada',0],['Recursos (RO, RR, AIRR)',1],['Execução trabalhista',1],['Súmulas e OJs do TST',1]]],
+ ['Direito Constitucional',[['Direitos fundamentais e sociais (art. 7º)',1],['Organização do Estado',0],['Poder Judiciário',1],['Controle de constitucionalidade',0]]],
+ ['Direito Administrativo',[['Princípios; atos administrativos',0],['Servidores (Lei 8.112/90)',1],['Licitações (14.133)',0],['Improbidade',0]]],
+ ['Direito Civil',[['LINDB; pessoas',0],['Negócio jurídico; prescrição',0],['Obrigações; contratos',0]]],
+ ['Direito Processual Civil',[['Aplicação subsidiária ao processo do trabalho',1],['Tutela provisória; recursos',0]]],
+ ['Direito Previdenciário',[['Benefícios previdenciários',0],['Acidente do trabalho',1]]],
+];
+const EDITAL_GESTAO=[
+ ['Língua Portuguesa',[['Interpretação de texto',1],['Concordância e regência; crase',0],['Reescrita de frases',0]]],
+ ['Raciocínio Lógico-Matemático',[['Lógica proposicional',1],['Argumentação',0],['Porcentagem e proporção',0]]],
+ ['Noções de Informática',[['Pacote Office; internet/segurança',0],['Governo digital',0]]],
+ ['Atualidades / Realidade Amapaense',[['Atualidades',0],['História, geografia e economia do Amapá',1]]],
+ ['Direito Constitucional',[['Direitos fundamentais',1],['Administração Pública (arts. 37-41)',1],['Organização do Estado',0],['Controle de constitucionalidade',0]]],
+ ['Direito Administrativo',[['Princípios; atos administrativos',0],['Licitações (14.133)',1],['Servidores públicos',0],['Processo administrativo',0],['Improbidade administrativa',1],['LRF',0]]],
+ ['Direito Civil',[['Parte geral; obrigações',0],['Contratos',0],['Responsabilidade civil',1]]],
+ ['Direito Processual Civil',[['Processo de conhecimento; tutelas',0],['Recursos',0],['Fazenda Pública em juízo',1]]],
+ ['Direito Tributário',[['Sistema tributário nacional',1],['ICMS e tributos estaduais',1],['Crédito tributário; execução fiscal',0]]],
+ ['Direito Financeiro / AFO',[['Orçamento público (PPA/LDO/LOA)',1],['Lei 4.320/64',0],['Lei de Responsabilidade Fiscal',1]]],
+ ['Direito do Trabalho / Penal (noções)',[['Noções de Direito do Trabalho',0],['Crimes contra a Administração Pública',1]]],
+ ['Legislação Estadual do Amapá',[['Constituição do Estado do Amapá',1],['Regime Jurídico dos Servidores do Estado',1],['Organização administrativa estadual',0]]],
+];
+const PRESETS={
+ macapa:{ nome:'Procurador — PGM Macapá', edital:EDITAL_MACAPA,
+   materias:[{nome:'Direito Administrativo',peso:5},{nome:'Direito Constitucional',peso:5},{nome:'Direito Tributário',peso:5},{nome:'Direito Processual Civil',peso:4},{nome:'Legislação Municipal de Macapá',peso:4},{nome:'Direito Financeiro',peso:3},{nome:'Direito Civil',peso:3},{nome:'Língua Portuguesa',peso:3},{nome:'Direito Urbanístico',peso:2},{nome:'Direito Ambiental',peso:2},{nome:'Direito do Trabalho',peso:2},{nome:'Direito Previdenciário',peso:2}],
+   leis:[{titulo:'Lei Orgânica do Município de Macapá',fonte:'https://www.macapa.ap.leg.br/leis/lei-organica-municipal'},{titulo:'LC 136/2020 — Organização da PROGEM',fonte:'https://macapa.ap.gov.br/unidade-administrativa/progem/'},{titulo:'LC 122/2018 — Estatuto dos Servidores de Macapá',fonte:'https://leismunicipais.com.br/lei-organica-macapa-ap'},{titulo:'LC 144/2021 (+209/2025) — Código Tributário Municipal',fonte:'https://macapa.ap.gov.br/leis-tributarias-municipais/'}] },
+ trt8:{ nome:'Analista Judiciário — TRT-8 (PA/AP)', edital:EDITAL_TRT8,
+   materias:[{nome:'Direito do Trabalho',peso:5},{nome:'Direito Processual do Trabalho',peso:5},{nome:'Direito Constitucional',peso:4},{nome:'Direito Administrativo',peso:4},{nome:'Língua Portuguesa',peso:3},{nome:'Raciocínio Lógico-Matemático',peso:3},{nome:'Direito Civil',peso:3},{nome:'Direito Processual Civil',peso:3},{nome:'Legislação do Judiciário',peso:3},{nome:'Noções de Informática',peso:2},{nome:'Direito Previdenciário',peso:2}],
+   leis:[{titulo:'CLT — Consolidação das Leis do Trabalho',fonte:'https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm'},{titulo:'Regimento Interno do TRT-8',fonte:'https://www.trt8.jus.br/'},{titulo:'Lei 11.416/2006 — Carreiras do Judiciário',fonte:'https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11416.htm'},{titulo:'Lei 8.112/1990 — Servidores Federais',fonte:'https://www.planalto.gov.br/ccivil_03/leis/l8112cons.htm'}] },
+ gestao:{ nome:'Analista Jurídico — Gestão Gov. AP', edital:EDITAL_GESTAO,
+   materias:[{nome:'Direito Constitucional',peso:5},{nome:'Direito Administrativo',peso:5},{nome:'Direito Tributário',peso:4},{nome:'Legislação Estadual do Amapá',peso:4},{nome:'Língua Portuguesa',peso:3},{nome:'Raciocínio Lógico-Matemático',peso:3},{nome:'Direito Civil',peso:3},{nome:'Direito Processual Civil',peso:3},{nome:'Direito Financeiro / AFO',peso:3},{nome:'Atualidades / Realidade Amapaense',peso:2},{nome:'Noções de Informática',peso:2},{nome:'Direito do Trabalho / Penal',peso:2}],
+   leis:[{titulo:'Constituição do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Regime Jurídico dos Servidores do Estado do Amapá',fonte:'https://www.al.ap.gov.br/'},{titulo:'Legislação Tributária Estadual do Amapá (ICMS)',fonte:'https://sefaz.portal.ap.gov.br/'}] },
+};
+async function carregarPreset(key){
+  const P=PRESETS[key]; if(!P) return;
+  const existe=await db.concursos.where('nome').equals(P.nome).first();
+  if(existe && !confirm(`"${P.nome}" já existe. Carregar de novo pode duplicar dados. Continuar?`)) return;
+  const concursoId=existe?existe.id:await db.concursos.add({nome:P.nome,criado:todayISO()});
+  estado.concursoId=concursoId;
+  const ciclo=await db.ciclo.where('concursoId').equals(concursoId).first();
+  if(ciclo) await db.ciclo.update(ciclo.id,{materias:P.materias,horasDia:3}); else await db.ciclo.add({concursoId,materias:P.materias,horasDia:3,blocos:[]});
+  for(const l of P.leis){ const ja=await db.leis.where('concursoId').equals(concursoId).filter(x=>x.titulo===l.titulo).first(); if(!ja) await db.leis.add({concursoId,titulo:l.titulo,texto:`⚠️ Cole aqui o texto oficial desta lei (artigo por artigo).\nFonte: ${l.fonte}`,criado:todayISO()}); }
+  await seedEdital(concursoId,P.edital);
+  await carregarConcursos(); toast(`"${P.nome}" carregado!`,'ok'); renderTudo(); showView('edital');
+}
+$$('.preset-btn').forEach(b=>b.addEventListener('click', ()=>carregarPreset(b.dataset.preset)));
+
+/* =====================================================================
+   BACKUP
+   ===================================================================== */
+const TABELAS=['concursos','questoes','respostas','flashcards','sessoes','leis','ciclo','simulados','redacoes','editalTopicos'];
+$('#export-json').addEventListener('click', async ()=>{ const dump={}; for(const t of TABELAS) dump[t]=await db[t].toArray(); const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`controle-estudos-${todayISO()}.json`; a.click(); });
+$('#import-json').addEventListener('change', async e=>{ const f=e.target.files[0]; if(!f) return; const dump=JSON.parse(await f.text()); for(const t of TABELAS){ if(dump[t]){ await db[t].clear(); await db[t].bulkAdd(dump[t]); } } toast('Backup importado!','ok'); location.reload(); });
+$('#reset-all').addEventListener('click', async ()=>{ if(!confirm('Apagar TODOS os dados? Não dá pra desfazer.')) return; await db.delete(); location.reload(); });
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+function renderTudo(){ renderHoje(); renderDashboard(); renderCards(); iniciarRevisao(); }
+async function init(){ await carregarConcursos(); renderTudo(); }
+init();
+
+// PWA: registra service worker (só funciona via http/https — em file:// é ignorado)
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
